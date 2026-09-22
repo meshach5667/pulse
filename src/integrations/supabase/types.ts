@@ -14,7 +14,302 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      event_timeline: {
+        Row: {
+          created_at: string
+          event_id: string
+          id: string
+          label: string
+          occurred_at: string
+          tone: string
+        }
+        Insert: {
+          created_at?: string
+          event_id: string
+          id?: string
+          label: string
+          occurred_at?: string
+          tone?: string
+        }
+        Update: {
+          created_at?: string
+          event_id?: string
+          id?: string
+          label?: string
+          occurred_at?: string
+          tone?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_timeline_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      events: {
+        Row: {
+          category: string
+          city: string
+          created_at: string
+          description: string
+          first_reported_at: string
+          freshness_score: number
+          id: string
+          independent_sources: number
+          last_updated_at: string
+          latitude: number
+          location_name: string
+          longitude: number
+          share_count: number
+          title: string
+          truth_state: Database["public"]["Enums"]["truth_state"]
+        }
+        Insert: {
+          category?: string
+          city: string
+          created_at?: string
+          description?: string
+          first_reported_at?: string
+          freshness_score?: number
+          id?: string
+          independent_sources?: number
+          last_updated_at?: string
+          latitude: number
+          location_name: string
+          longitude: number
+          share_count?: number
+          title: string
+          truth_state?: Database["public"]["Enums"]["truth_state"]
+        }
+        Update: {
+          category?: string
+          city?: string
+          created_at?: string
+          description?: string
+          first_reported_at?: string
+          freshness_score?: number
+          id?: string
+          independent_sources?: number
+          last_updated_at?: string
+          latitude?: number
+          location_name?: string
+          longitude?: number
+          share_count?: number
+          title?: string
+          truth_state?: Database["public"]["Enums"]["truth_state"]
+        }
+        Relationships: []
+      }
+      evidence: {
+        Row: {
+          analysis: string
+          contradicts_claim: boolean
+          created_at: string
+          event_id: string
+          excluded: boolean
+          exclusion_reason: string | null
+          id: string
+          independence_signals: Json
+          kind: Database["public"]["Enums"]["evidence_kind"]
+          report_id: string | null
+          source_id: string | null
+          supports_claim: boolean
+        }
+        Insert: {
+          analysis?: string
+          contradicts_claim?: boolean
+          created_at?: string
+          event_id: string
+          excluded?: boolean
+          exclusion_reason?: string | null
+          id?: string
+          independence_signals?: Json
+          kind?: Database["public"]["Enums"]["evidence_kind"]
+          report_id?: string | null
+          source_id?: string | null
+          supports_claim?: boolean
+        }
+        Update: {
+          analysis?: string
+          contradicts_claim?: boolean
+          created_at?: string
+          event_id?: string
+          excluded?: boolean
+          exclusion_reason?: string | null
+          id?: string
+          independence_signals?: Json
+          kind?: Database["public"]["Enums"]["evidence_kind"]
+          report_id?: string | null
+          source_id?: string | null
+          supports_claim?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "evidence_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "evidence_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "reports"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "evidence_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "sources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pulse_users: {
+        Row: {
+          city: string
+          created_at: string
+          id: string
+          latitude: number | null
+          longitude: number | null
+          name: string
+        }
+        Insert: {
+          city: string
+          created_at?: string
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          name: string
+        }
+        Update: {
+          city?: string
+          created_at?: string
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          name?: string
+        }
+        Relationships: []
+      }
+      reports: {
+        Row: {
+          ai_analysis: Json
+          channel: string
+          content: string
+          created_at: string
+          event_id: string | null
+          extracted_claim: string | null
+          id: string
+          is_duplicate_of: string | null
+          latitude: number | null
+          location_name: string | null
+          longitude: number | null
+          media: Json
+          source_id: string | null
+          status: string
+          user_id: string | null
+        }
+        Insert: {
+          ai_analysis?: Json
+          channel?: string
+          content: string
+          created_at?: string
+          event_id?: string | null
+          extracted_claim?: string | null
+          id?: string
+          is_duplicate_of?: string | null
+          latitude?: number | null
+          location_name?: string | null
+          longitude?: number | null
+          media?: Json
+          source_id?: string | null
+          status?: string
+          user_id?: string | null
+        }
+        Update: {
+          ai_analysis?: Json
+          channel?: string
+          content?: string
+          created_at?: string
+          event_id?: string | null
+          extracted_claim?: string | null
+          id?: string
+          is_duplicate_of?: string | null
+          latitude?: number | null
+          location_name?: string | null
+          longitude?: number | null
+          media?: Json
+          source_id?: string | null
+          status?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reports_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reports_is_duplicate_of_fkey"
+            columns: ["is_duplicate_of"]
+            isOneToOne: false
+            referencedRelation: "reports"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reports_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "sources"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reports_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "pulse_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sources: {
+        Row: {
+          created_at: string
+          history: Json
+          id: string
+          kind: Database["public"]["Enums"]["source_kind"]
+          label: string
+          reliability: number
+          verification_signals: Json
+        }
+        Insert: {
+          created_at?: string
+          history?: Json
+          id?: string
+          kind?: Database["public"]["Enums"]["source_kind"]
+          label: string
+          reliability?: number
+          verification_signals?: Json
+        }
+        Update: {
+          created_at?: string
+          history?: Json
+          id?: string
+          kind?: Database["public"]["Enums"]["source_kind"]
+          label?: string
+          reliability?: number
+          verification_signals?: Json
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +318,28 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      evidence_kind:
+        | "text_report"
+        | "image"
+        | "video"
+        | "audio"
+        | "official_statement"
+        | "media_report"
+        | "sensor"
+      source_kind:
+        | "anonymous"
+        | "eyewitness"
+        | "official"
+        | "broadcast"
+        | "social"
+        | "unknown"
+      truth_state:
+        | "early_signal"
+        | "corroborated"
+        | "confirmed"
+        | "disputed"
+        | "false"
+        | "expired"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +466,32 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      evidence_kind: [
+        "text_report",
+        "image",
+        "video",
+        "audio",
+        "official_statement",
+        "media_report",
+        "sensor",
+      ],
+      source_kind: [
+        "anonymous",
+        "eyewitness",
+        "official",
+        "broadcast",
+        "social",
+        "unknown",
+      ],
+      truth_state: [
+        "early_signal",
+        "corroborated",
+        "confirmed",
+        "disputed",
+        "false",
+        "expired",
+      ],
+    },
   },
 } as const

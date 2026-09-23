@@ -1,11 +1,14 @@
-import { Link } from "@tanstack/react-router";
 import { ChevronRight } from "lucide-react";
 import { useState } from "react";
 
 import { StatusBadge, StatusRail } from "@/components/pulse/StatusBadge";
 import { EvidencePanel, useEvidence } from "@/components/pulse/EvidencePanel";
 import { RumorBlock } from "@/components/pulse/RumorBlock";
-import { computeFreshness, decayedState, isHighCirculationLowCorroboration } from "@/lib/pulse/freshness";
+import {
+  computeFreshness,
+  decayedState,
+  isHighCirculationLowCorroboration,
+} from "@/lib/pulse/freshness";
 import { formatClock, formatDistance } from "@/lib/pulse/geo";
 import type { PulseEvent } from "@/lib/pulse/types";
 import { cn } from "@/lib/utils";
@@ -60,9 +63,7 @@ export function EventCard({
             {event.description}
           </p>
 
-          {stale ? (
-            <p className="mt-2 text-[11px] text-expired">{freshness.label}</p>
-          ) : null}
+          {stale ? <p className="mt-2 text-[11px] text-expired">{freshness.label}</p> : null}
 
           {isHighCirculationLowCorroboration(event) ? (
             <div className="mt-3">
@@ -72,7 +73,11 @@ export function EventCard({
 
           {open && evidence ? (
             <div className="mt-3">
-              <EvidencePanel event={{ ...event, truth_state: state }} distance={distance} evidence={evidence} />
+              <EvidencePanel
+                event={{ ...event, truth_state: state }}
+                distance={distance}
+                evidence={evidence}
+              />
             </div>
           ) : null}
 
@@ -84,14 +89,13 @@ export function EventCard({
             >
               {open ? "Hide evidence" : "Why am I seeing this?"}
             </button>
-            <Link
-              to="/event/$eventId"
-              params={{ eventId: event.id }}
+            <a
+              href={`/event/${event.id}`}
               className="flex items-center gap-0.5 text-[11px] font-medium text-muted-foreground hover:text-foreground"
             >
               Timeline
               <ChevronRight className="size-3.5" />
-            </Link>
+            </a>
           </div>
         </div>
       </div>

@@ -1,4 +1,3 @@
-import { Link } from "@tanstack/react-router";
 import { Check, ChevronDown, MapPin, MessageSquareText, Radio, WifiOff } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -45,15 +44,20 @@ export function PulseHeader({ lastUpdated }: { lastUpdated: number }) {
           </span>
           <div className="leading-none">
             <p className="text-[15px] font-bold tracking-tight">PULSE</p>
-            <p className="mt-0.5 text-[10px] text-muted-foreground">Know what&rsquo;s happening around you.</p>
+            <p className="mt-0.5 text-[10px] text-muted-foreground">
+              Know what&rsquo;s happening around you.
+            </p>
           </div>
         </div>
 
         <div className="flex items-center gap-1.5">
-          <Button asChild variant="ghost" size="icon" className="size-8 text-muted-foreground">
-            <Link to="/ask" aria-label="Ask Pulse">
-              <MessageSquareText className="size-[18px]" />
-            </Link>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-8 text-muted-foreground"
+            aria-label="Ask Pulse"
+          >
+            <MessageSquareText className="size-[18px]" />
           </Button>
 
           <DropdownMenu>
@@ -75,7 +79,9 @@ export function PulseHeader({ lastUpdated }: { lastUpdated: number }) {
                 </DropdownMenuItem>
               ))}
               <DropdownMenuSeparator />
-              <DropdownMenuItem onSelect={() => void requestGps()}>Use my device location</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => void requestGps()}>
+                Use my device location
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

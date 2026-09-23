@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Minus, Plus, Slash } from "lucide-react";
 
-import { supabase } from "@/integrations/supabase/client";
+import { fetchEvidence } from "@/lib/pulse/api";
 import { formatClock, formatDistance } from "@/lib/pulse/geo";
 import { STATUS_META } from "@/lib/pulse/status";
 import type { PulseEvent, PulseEvidence } from "@/lib/pulse/types";
@@ -11,13 +11,7 @@ export function useEvidence(eventId: string, enabled: boolean) {
     queryKey: ["pulse", "evidence", eventId],
     enabled,
     queryFn: async (): Promise<PulseEvidence[]> => {
-      const { data, error } = await supabase
-        .from("evidence")
-        .select("*")
-        .eq("event_id", eventId)
-        .order("created_at", { ascending: true });
-      if (error) throw new Error(error.message);
-      return (data ?? []) as unknown as PulseEvidence[];
+      return fetchEvidence(eventId);
     },
   });
 }
@@ -31,7 +25,11 @@ function Row({
 }) {
   const Icon = tone === "support" ? Plus : tone === "against" ? Minus : Slash;
   const color =
-    tone === "support" ? "text-corroborated" : tone === "against" ? "text-confirmed" : "text-muted-foreground";
+    tone === "support"
+      ? "text-corroborated"
+      : tone === "against"
+        ? "text-confirmed"
+        : "text-muted-foreground";
   return (
     <li className="flex gap-2 text-[11.5px] leading-relaxed">
       <Icon className={`mt-[3px] size-3 shrink-0 ${color}`} />
@@ -60,8 +58,8 @@ export function EvidencePanel({
       </p>
       <ul className="mt-2 space-y-1.5">
         <Row tone="support">
-          {formatDistance(distance)} from you, first reported {formatClock(event.first_reported_at)}, last
-          updated {formatClock(event.last_updated_at)}.
+          {formatDistance(distance)} from you, first reported {formatClock(event.first_reported_at)}
+          , last updated {formatClock(event.last_updated_at)}.
         </Row>
         <Row tone="support">
           {event.independent_sources} independent{" "}

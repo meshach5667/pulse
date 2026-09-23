@@ -41,33 +41,7 @@ function PulseApp() {
   }, [hydrated, profile]);
 
   if (!hydrated) return null;
-  if (!profile)
-    return (
-      <Onboarding
-        onComplete={(name, city) => {
-          const cityData = {
-            Abuja: [9.0579, 7.4951],
-            Kaduna: [10.5222, 7.4383],
-            Kano: [12.0022, 8.5919],
-            Lagos: [6.5244, 3.3792],
-          }[city] ?? [9.0579, 7.4951];
-          window.localStorage.setItem(
-            "pulse.profile.v1",
-            JSON.stringify({
-              id: crypto.randomUUID(),
-              name,
-              city,
-              latitude: cityData[0],
-              longitude: cityData[1],
-              gpsGranted: false,
-              notifications: true,
-              simulatedTravel: false,
-            }),
-          );
-          window.location.reload();
-        }}
-      />
-    );
+  if (!profile) return <Onboarding onComplete={() => undefined} />;
 
   return (
     <div className="min-h-screen bg-background">
@@ -133,9 +107,23 @@ function PulseApp() {
   );
 }
 
-function Onboarding({ onComplete }: { onComplete: (name: string, city: string) => void }) {
+function Onboarding({ onComplete }: { onComplete: () => void }) {
   const [name, setName] = useState("");
-  const [city, setCity] = useState("Abuja");
+  const { createFromGps } = useProfile();
+  const [message, setMessage] = useState("");
+
+  async function handleLocation() {
+    if (!name.trim()) {
+      setMessage("Enter your name first.");
+      return;
+    }
+    const result = await createFromGps(name);
+    if (!result.ok) {
+      setMessage(result.message);
+      return;
+    }
+    onComplete();
+  }
   return (
     <main className="mx-auto flex min-h-screen max-w-[430px] flex-col justify-center px-6">
       <span className="mb-5 grid size-10 place-items-center rounded-lg bg-primary text-lg font-bold text-primary-foreground">
@@ -146,8 +134,8 @@ function Onboarding({ onComplete }: { onComplete: (name: string, city: string) =
         Know what&apos;s happening around you.
       </h1>
       <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-        Start with your name and a region. You can use device location later or simulate travel for
-        a demonstration.
+        Enter your name and allow location access. PULSE uses your device position to show the
+        nearby place.
       </p>
       <label className="mt-8 text-xs font-semibold">
         Your name
@@ -158,24 +146,13 @@ function Onboarding({ onComplete }: { onComplete: (name: string, city: string) =
           placeholder="Name"
         />
       </label>
-      <label className="mt-4 text-xs font-semibold">
-        Current city
-        <select
-          value={city}
-          onChange={(event) => setCity(event.target.value)}
-          className="mt-2 w-full rounded-lg border bg-card px-3 py-3 text-sm outline-none"
-        >
-          {["Abuja", "Kaduna", "Kano", "Lagos"].map((option) => (
-            <option key={option}>{option}</option>
-          ))}
-        </select>
-      </label>
       <button
-        onClick={() => onComplete(name || "Anonymous", city)}
+        onClick={() => void handleLocation()}
         className="mt-6 rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground"
       >
-        Enter PULSE
+        Use my current location
       </button>
+      {message ? <p className="mt-3 text-xs text-muted-foreground">{message}</p> : null}
     </main>
   );
 }

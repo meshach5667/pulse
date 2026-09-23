@@ -28,3 +28,27 @@ export function nearestCity(latitude: number, longitude: number): City {
   }
   return best;
 }
+
+export async function resolvePlace(latitude: number, longitude: number): Promise<string> {
+  try {
+    const response = await fetch(
+      `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`,
+    );
+    if (response.ok) {
+      const data = (await response.json()) as {
+        city?: string;
+        locality?: string;
+        principalSubdivision?: string;
+      };
+      return (
+        data.city ||
+        data.locality ||
+        data.principalSubdivision ||
+        nearestCity(latitude, longitude).name
+      );
+    }
+  } catch {
+    // Use the nearest known city when reverse geocoding is unavailable.
+  }
+  return nearestCity(latitude, longitude).name;
+}

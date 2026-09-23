@@ -1,21 +1,12 @@
-import { Check, ChevronDown, MapPin, MessageSquareText, Radio, WifiOff } from "lucide-react";
+import { LocateFixed, MapPin, MessageSquareText, Radio, WifiOff } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { CITIES } from "@/lib/pulse/cities";
 import { formatAgo } from "@/lib/pulse/geo";
 import { useProfile } from "@/lib/pulse/profile";
 
 export function PulseHeader({ lastUpdated }: { lastUpdated: number }) {
-  const { profile, setCity, requestGps } = useProfile();
+  const { profile, requestGps } = useProfile();
   const [, tick] = useState(0);
   const [online, setOnline] = useState(true);
 
@@ -60,30 +51,19 @@ export function PulseHeader({ lastUpdated }: { lastUpdated: number }) {
             <MessageSquareText className="size-[18px]" />
           </Button>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className="flex items-center gap-1 rounded-full bg-card/70 py-1 pr-1.5 pl-2 ring-1 ring-border">
-                <MapPin className="size-3.5 text-accent" />
-                <span className="text-[12px] font-medium">{profile?.city ?? "Set location"}</span>
-                <ChevronDown className="size-3.5 text-muted-foreground" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel className="text-[11px] font-semibold tracking-wide uppercase">
-                Simulate travel
-              </DropdownMenuLabel>
-              {CITIES.map((city) => (
-                <DropdownMenuItem key={city.name} onSelect={() => setCity(city.name)}>
-                  <span className="flex-1">{city.name}</span>
-                  {profile?.city === city.name ? <Check className="size-4 text-accent" /> : null}
-                </DropdownMenuItem>
-              ))}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onSelect={() => void requestGps()}>
-                Use my device location
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <div className="flex items-center gap-1 rounded-full bg-card/70 py-1 pr-1.5 pl-2 ring-1 ring-border">
+            <MapPin className="size-3.5 text-accent" />
+            <span className="text-[12px] font-medium">{profile?.city ?? "Current location"}</span>
+            <button
+              type="button"
+              onClick={() => void requestGps()}
+              className="ml-1 text-muted-foreground hover:text-foreground"
+              aria-label="Refresh current location"
+              title="Refresh current location"
+            >
+              <LocateFixed className="size-3.5" />
+            </button>
+          </div>
         </div>
       </div>
 

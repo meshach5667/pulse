@@ -1,18 +1,13 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
-
-import { supabase } from "@/integrations/supabase/client";
 import type { PulseEvent, PulseEvidence, PulseReport, PulseTimelineEntry } from "./types";
 
 export const eventsQuery = {
   queryKey: ["pulse", "events"],
   queryFn: async (): Promise<PulseEvent[]> => {
-    const { data, error } = await supabase
-      .from("events")
-      .select("*")
-      .order("last_updated_at", { ascending: false });
-    if (error) throw new Error(error.message);
-    return (data ?? []) as unknown as PulseEvent[];
+    const response = await fetch("/api/events");
+    if (!response.ok) throw new Error("Events could not be loaded.");
+    return (await response.json()) as PulseEvent[];
   },
 };
 
@@ -23,34 +18,25 @@ export function useEvents() {
 export function useEvent(eventId: string) {
   return useQuery({
     queryKey: ["pulse", "event", eventId],
-    queryFn: async () => {
-      const [event, evidence, timeline, reports] = await Promise.all([
-        supabase.from("events").select("*").eq("id", eventId).maybeSingle(),
-        supabase
-          .from("evidence")
-          .select("*")
-          .eq("event_id", eventId)
-          .order("created_at", { ascending: true }),
-        supabase
-          .from("event_timeline")
-          .select("*")
-          .eq("event_id", eventId)
-          .order("occurred_at", { ascending: true }),
-        supabase
-          .from("reports")
-          .select("*")
-          .eq("event_id", eventId)
-          .order("created_at", { ascending: true }),
+    queryFn: async (): Promise<{
+      event: PulseEvent | null;
+      evidence: PulseEvidence[];
+      timeline: PulseTimelineEntry[];
+      reports: PulseReport[];
+    }> => {
+      const [eventResponse, detailResponse] = await Promise.all([
+        fetch(`/api/events/${eventId}`),
+        fetch(`/api/events/${eventId}/evidence`),
       ]);
-
-      if (event.error) throw new Error(event.error.message);
-
-      return {
-        event: event.data as unknown as PulseEvent | null,
-        evidence: (evidence.data ?? []) as unknown as PulseEvidence[],
-        timeline: (timeline.data ?? []) as unknown as PulseTimelineEntry[],
-        reports: (reports.data ?? []) as unknown as PulseReport[],
+      if (!eventResponse.ok || !detailResponse.ok)
+        throw new Error("Event evidence could not be loaded.");
+      const event = (await eventResponse.json()) as PulseEvent | null;
+      const details = (await detailResponse.json()) as {
+        evidence: PulseEvidence[];
+        timeline: PulseTimelineEntry[];
+        reports: PulseReport[];
       };
+      return { event, ...details };
     },
   });
 }
@@ -60,37 +46,21 @@ export function useMyReports(userId: string | undefined) {
     queryKey: ["pulse", "reports", userId ?? "none"],
     enabled: Boolean(userId),
     queryFn: async (): Promise<PulseReport[]> => {
-      const { data, error } = await supabase
-        .from("reports")
-        .select("*")
-        .eq("user_id", userId!)
-        .order("created_at", { ascending: false });
-      if (error) throw new Error(error.message);
-      return (data ?? []) as unknown as PulseReport[];
+      const response = await fetch(`/api/reports?userId=${encodeURIComponent(userId!)}`);
+      if (!response.ok) throw new Error("Reports could not be loaded.");
+      return (await response.json()) as PulseReport[];
     },
   });
 }
 
-/** Keeps the feed live: any change to events, reports or the timeline refreshes. */
 export function useLiveUpdates() {
   const queryClient = useQueryClient();
-
   useEffect(() => {
-    const channel = supabase
-      .channel("pulse-live")
-      .on("postgres_changes", { event: "*", schema: "public", table: "events" }, () => {
-        queryClient.invalidateQueries({ queryKey: ["pulse"] });
-      })
-      .on("postgres_changes", { event: "*", schema: "public", table: "reports" }, () => {
-        queryClient.invalidateQueries({ queryKey: ["pulse"] });
-      })
-      .on("postgres_changes", { event: "*", schema: "public", table: "event_timeline" }, () => {
-        queryClient.invalidateQueries({ queryKey: ["pulse"] });
-      })
-      .subscribe();
-
-    return () => {
-      void supabase.removeChannel(channel);
+    const source = new EventSource("/api/events/stream");
+    source.onmessage = () => {
+      void queryClient.invalidateQueries({ queryKey: ["pulse"] });
     };
+    source.onerror = () => source.close();
+    return () => source.close();
   }, [queryClient]);
 }

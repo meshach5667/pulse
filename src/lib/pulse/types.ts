@@ -1,21 +1,11 @@
 export type TruthState =
-  | "early_signal"
-  | "corroborated"
-  | "confirmed"
-  | "disputed"
-  | "false"
-  | "expired";
+  "early_signal" | "corroborated" | "confirmed" | "disputed" | "false" | "expired";
 
 export type EvidenceKind =
-  | "text_report"
-  | "image"
-  | "video"
-  | "audio"
-  | "official_statement"
-  | "media_report"
-  | "sensor";
+  "text_report" | "image" | "video" | "audio" | "official_statement" | "media_report" | "sensor";
 
-export type SourceKind = "anonymous" | "eyewitness" | "official" | "broadcast" | "social" | "unknown";
+export type SourceKind =
+  "anonymous" | "eyewitness" | "official" | "broadcast" | "social" | "unknown";
 
 export interface PulseEvent {
   id: string;
@@ -59,6 +49,7 @@ export interface PulseTimelineEntry {
 
 export interface PulseReport {
   id: string;
+  user_id?: string;
   event_id: string | null;
   content: string;
   location_name: string | null;

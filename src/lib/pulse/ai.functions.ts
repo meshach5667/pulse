@@ -9,9 +9,12 @@ interface AnalyzeInput {
 }
 
 export async function analyzeReport(input: AnalyzeInput): Promise<ReportAnalysis> {
-  const endpoint = import.meta.env["VITE_AI_API_URL"] as string | undefined;
-  if (endpoint) {
-    const response = await fetch(`${endpoint}/analyze`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input) });
+  {
+    const response = await fetch("/api/ai/analyze", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(input),
+    });
     if (response.ok) return (await response.json()) as ReportAnalysis;
   }
   return {
@@ -22,21 +25,42 @@ export async function analyzeReport(input: AnalyzeInput): Promise<ReportAnalysis
     category: "general",
     text_signals: ["AI analysis is pending server configuration."],
     missing_context: ["Independent confirmation"],
-    visual_review: input.hasImage || input.hasVideo ? ["Media review requires the AI service."] : [],
-    summary: "This report has been received as an early signal. Independent evidence is still needed before the claim can be corroborated.",
+    visual_review:
+      input.hasImage || input.hasVideo ? ["Media review requires the AI service."] : [],
+    summary:
+      "This report has been received as an early signal. Independent evidence is still needed before the claim can be corroborated.",
     confidence: "low",
   };
 }
 
-export async function askPulse(input: { question: string; city: string; context: string }): Promise<{ answer: string }> {
-  const endpoint = import.meta.env["VITE_AI_API_URL"] as string | undefined;
-  if (endpoint) {
-    const response = await fetch(`${endpoint}/ask`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input) });
+export async function askPulse(input: {
+  question: string;
+  city: string;
+  context: string;
+}): Promise<{ answer: string }> {
+  {
+    const response = await fetch("/api/ai/ask", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(input),
+    });
     if (response.ok) return (await response.json()) as { answer: string };
   }
   let events: PulseEvent[] = [];
-  try { events = JSON.parse(input.context) as PulseEvent[]; } catch { /* use an empty evidence set */ }
-  if (!events.length) return { answer: `I do not have current event data for ${input.city}, so I cannot answer that reliably.` };
-  const summary = events.slice(0, 3).map((event) => `${event.title} (${event.truth_state.replace("_", " ")})`).join("; ");
-  return { answer: `Current Pulse data for ${input.city}: ${summary}. This is a summary of available reports, not a guarantee about conditions on the ground.` };
+  try {
+    events = JSON.parse(input.context) as PulseEvent[];
+  } catch {
+    /* use an empty evidence set */
+  }
+  if (!events.length)
+    return {
+      answer: `I do not have current event data for ${input.city}, so I cannot answer that reliably.`,
+    };
+  const summary = events
+    .slice(0, 3)
+    .map((event) => `${event.title} (${event.truth_state.replace("_", " ")})`)
+    .join("; ");
+  return {
+    answer: `Current Pulse data for ${input.city}: ${summary}. This is a summary of available reports, not a guarantee about conditions on the ground.`,
+  };
 }

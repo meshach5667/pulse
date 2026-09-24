@@ -30,18 +30,55 @@ export function PulseHeader({ onNavigate }: { onNavigate?: (view: string) => voi
   return (
     <header className="glass-panel sticky top-0 z-30 border-b border-border">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
-        <button type="button" onClick={() => onNavigate?.("home")} className="flex items-center gap-2">
-          <span className="grid size-7 place-items-center rounded-md bg-primary text-[11px] font-bold text-primary-foreground">P</span>
+        <button
+          type="button"
+          onClick={() => onNavigate?.("home")}
+          className="flex items-center gap-2"
+        >
+          <span className="grid size-7 place-items-center rounded-md bg-primary text-[11px] font-bold text-primary-foreground">
+            P
+          </span>
           <span className="text-[15px] font-bold tracking-tight">PULSE</span>
         </button>
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" className="size-8 text-muted-foreground" onClick={() => onNavigate?.("ask")} aria-label="Ask Pulse"><MessageSquareText className="size-[18px]" /></Button>
-          <button type="button" onClick={() => void requestGps()} className="flex max-w-[190px] items-center gap-1 rounded-full bg-card/80 py-1 pr-2 pl-2.5 ring-1 ring-border" title="Refresh current location"><MapPin className="size-3.5 shrink-0 text-accent" /><span className="truncate text-[12px] font-medium">{profile?.city ?? "Current location"}</span><LocateFixed className="size-3.5 shrink-0 text-muted-foreground" /></button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-8 text-muted-foreground"
+            onClick={() => onNavigate?.("ask")}
+            aria-label="Ask Pulse"
+          >
+            <MessageSquareText className="size-[18px]" />
+          </Button>
+          <button
+            type="button"
+            onClick={() => void requestGps()}
+            className="flex max-w-[190px] items-center gap-1 rounded-full bg-card/80 py-1 pr-2 pl-2.5 ring-1 ring-border"
+            title="Refresh current location"
+          >
+            <MapPin className="size-3.5 shrink-0 text-accent" />
+            <span className="truncate text-[12px] font-medium">
+              {profile?.city ?? "Current location"}
+            </span>
+            <LocateFixed className="size-3.5 shrink-0 text-muted-foreground" />
+          </button>
         </div>
       </div>
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 pb-2.5 text-[11px] text-muted-foreground sm:px-6">
-        <span className="flex items-center gap-1.5">{online ? <><span className="size-1.5 animate-pulse-dot rounded-full bg-confirmed" /> Live</> : <><WifiOff className="size-3.5" /> Offline</>}</span>
-        <span className="flex items-center gap-1.5 font-mono tabular"><Radio className="size-3" /> Updated {formatAgo(new Date(lastUpdated).toISOString())}</span>
+        <span className="flex items-center gap-1.5">
+          {online ? (
+            <>
+              <span className="size-1.5 animate-pulse-dot rounded-full bg-confirmed" /> Live
+            </>
+          ) : (
+            <>
+              <WifiOff className="size-3.5" /> Offline
+            </>
+          )}
+        </span>
+        <span className="flex items-center gap-1.5 font-mono tabular">
+          <Radio className="size-3" /> Updated {formatAgo(new Date(lastUpdated).toISOString())}
+        </span>
       </div>
     </header>
   );

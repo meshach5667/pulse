@@ -2,7 +2,7 @@ import { ChevronRight } from "lucide-react";
 import { useState } from "react";
 
 import { StatusBadge, StatusRail } from "@/components/pulse/StatusBadge";
-import { EvidencePanel, useEvidence } from "@/components/pulse/EvidencePanel";
+import { EvidencePanel } from "@/components/pulse/EvidencePanel";
 import { RumorBlock } from "@/components/pulse/RumorBlock";
 import {
   computeFreshness,
@@ -11,6 +11,7 @@ import {
 } from "@/lib/pulse/freshness";
 import { formatClock, formatDistance } from "@/lib/pulse/geo";
 import type { PulseEvent } from "@/lib/pulse/types";
+import { useEvidence } from "@/lib/pulse/use-evidence";
 import { cn } from "@/lib/utils";
 
 export function EventCard({

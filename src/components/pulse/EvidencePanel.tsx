@@ -1,21 +1,8 @@
-import { useQuery } from "@tanstack/react-query";
 import { Minus, Plus, Slash } from "lucide-react";
 
-import { supabase } from "@/integrations/supabase/client";
 import { formatClock, formatDistance } from "@/lib/pulse/geo";
 import { STATUS_META } from "@/lib/pulse/status";
 import type { PulseEvent, PulseEvidence } from "@/lib/pulse/types";
-
-export function useEvidence(eventId: string, enabled: boolean) {
-  return useQuery({
-    queryKey: ["pulse", "evidence", eventId],
-    enabled,
-    queryFn: async (): Promise<PulseEvidence[]> => {
-      const { data } = await supabase.from("evidence").select("*").eq("event_id", eventId).order("created_at");
-      return (data ?? []) as unknown as PulseEvidence[];
-    },
-  });
-}
 
 function Row({
   tone,

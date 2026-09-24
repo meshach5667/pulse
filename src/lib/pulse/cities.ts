@@ -73,9 +73,8 @@ export async function resolvePlace(latitude: number, longitude: number): Promise
   const known = geocodedCity
     ? CITIES.find((c) => geocodedCity!.toLowerCase().includes(c.name.toLowerCase()))
     : undefined;
-  const km = Math.sqrt(
-    (nearest.latitude - latitude) ** 2 + (nearest.longitude - longitude) ** 2,
-  ) * 111;
+  const km =
+    Math.sqrt((nearest.latitude - latitude) ** 2 + (nearest.longitude - longitude) ** 2) * 111;
   const city = known?.name ?? (km < 120 || !geocodedCity ? nearest.name : geocodedCity);
   return { city, area: area && area !== city ? area : null };
 }

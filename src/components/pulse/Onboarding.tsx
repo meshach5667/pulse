@@ -4,7 +4,13 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { CITIES } from "@/lib/pulse/cities";
 import { useProfile } from "@/lib/pulse/profile";
 
@@ -37,8 +43,8 @@ export function Onboarding() {
             Information travels fast. Pulse shows how much of it is established.
           </h2>
           <p className="max-w-md text-sm opacity-70">
-            Early signal, corroborated, confirmed, disputed, false, expired. Every state explained, every
-            source counted once.
+            Early signal, corroborated, confirmed, disputed, false, expired. Every state explained,
+            every source counted once.
           </p>
         </div>
         <p className="text-xs opacity-50">Pulse never declares a location safe.</p>
@@ -49,14 +55,22 @@ export function Onboarding() {
           P
         </span>
         <p className="text-[11px] font-semibold tracking-[0.16em] text-accent uppercase">Pulse</p>
-        <h1 className="mt-2 text-3xl font-semibold tracking-tight">Know what&apos;s happening around you.</h1>
+        <h1 className="mt-2 text-3xl font-semibold tracking-tight">
+          Know what&apos;s happening around you.
+        </h1>
         <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-          Allow location access and Pulse will detect your region automatically — Abuja, Lagos, Ibadan and more.
+          Allow location access and Pulse will detect your region automatically — Abuja, Lagos,
+          Ibadan and more.
         </p>
 
         <div className="mt-8 space-y-2">
           <Label htmlFor="name">Your name</Label>
-          <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" />
+          <Input
+            id="name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Name"
+          />
         </div>
 
         <Button className="mt-6" size="lg" onClick={() => void handleGps()} disabled={busy}>
@@ -79,12 +93,20 @@ export function Onboarding() {
                 ))}
               </SelectContent>
             </Select>
-            <Button variant="secondary" className="w-full" onClick={() => createManual(name, city)} disabled={!name.trim()}>
+            <Button
+              variant="secondary"
+              className="w-full"
+              onClick={() => createManual(name, city)}
+              disabled={!name.trim()}
+            >
               Continue with {city}
             </Button>
           </div>
         ) : (
-          <button className="mt-3 text-xs text-muted-foreground underline" onClick={() => setManual(true)}>
+          <button
+            className="mt-3 text-xs text-muted-foreground underline"
+            onClick={() => setManual(true)}
+          >
             Location unavailable? Choose a city
           </button>
         )}

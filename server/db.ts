@@ -4,6 +4,7 @@ import type {
   PulseEvidence,
   PulseReport,
   PulseTimelineEntry,
+  PushSubscriptionRecord,
 } from "../src/lib/pulse/types.js";
 
 const client = new MongoClient(process.env["MONGODB_URI"] ?? "mongodb://127.0.0.1:27017");
@@ -24,6 +25,8 @@ export const evidence = (db: Db): Collection<PulseEvidence> =>
 export const reports = (db: Db): Collection<PulseReport> => db.collection<PulseReport>("reports");
 export const timeline = (db: Db): Collection<PulseTimelineEntry> =>
   db.collection<PulseTimelineEntry>("event_timeline");
+export const pushSubscriptions = (db: Db): Collection<PushSubscriptionRecord> =>
+  db.collection<PushSubscriptionRecord>("push_subscriptions");
 
 async function seedDemo(db: Db) {
   if ((await events(db).countDocuments()) > 0) return;

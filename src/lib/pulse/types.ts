@@ -87,3 +87,38 @@ export interface PulseProfile {
   notifications: boolean;
   simulatedTravel: boolean;
 }
+
+export interface PushSubscriptionKeys {
+  p256dh: string;
+  auth: string;
+}
+
+export interface PushSubscriptionData {
+  endpoint: string;
+  expirationTime?: number | null;
+  keys: PushSubscriptionKeys;
+}
+
+export interface PushSubscriptionRecord {
+  id: string;
+  endpoint: string;
+  keys: PushSubscriptionKeys;
+  userId?: string;
+  city?: string;
+  latitude?: number;
+  longitude?: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PushNotificationPayload {
+  title: string;
+  body: string;
+  icon?: string;
+  badge?: string;
+  url?: string;
+  eventId?: string;
+  tag?: string;
+  timestamp?: number;
+  data?: Record<string, unknown>;
+}

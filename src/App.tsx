@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Bell,
+  BellOff,
+  BellRing,
   FileText,
   Image,
   LayoutList,
+  Loader2,
   Map as MapIcon,
   MessageSquareText,
   RefreshCw,
@@ -24,10 +27,19 @@ import { StatusBadge } from "@/components/pulse/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Toaster } from "@/components/ui/sonner";
+import { toast } from "sonner";
 import { askPulse } from "@/lib/pulse/ai.functions";
 import { useEvent, useEvents, useLiveUpdates } from "@/lib/pulse/data";
 import { distanceKm, formatDistance } from "@/lib/pulse/geo";
 import { decayedState, relevanceScore } from "@/lib/pulse/freshness";
+import {
+  getNotificationPermission,
+  getExistingPushSubscription,
+  subscribeToPush,
+  unsubscribeFromPush,
+  sendTestPushNotification,
+} from "@/lib/pulse/push";
 import { submitReport } from "@/lib/pulse/pipeline";
 import { useProfile } from "@/lib/pulse/profile";
 import type { PulseEvent, TruthState } from "@/lib/pulse/types";
@@ -53,7 +65,43 @@ export default function App() {
   const { profile, hydrated } = useProfile();
   const [view, setView] = useState("home");
   const [selectedEvent, setSelectedEvent] = useState<PulseEvent | null>(null);
-  useLiveUpdates();
+
+  // Real-time live updates with instant toast notifications and click-to-view
+  useLiveUpdates(setSelectedEvent);
+
+  // Handle service worker notifications and url param ?event=
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    // Check URL query parameter ?event=...
+    const params = new URLSearchParams(window.location.search);
+    const eventParam = params.get("event");
+    if (eventParam) {
+      fetch(`/api/events/${encodeURIComponent(eventParam)}`)
+        .then((r) => r.ok && r.json())
+        .then((ev: PulseEvent | null) => {
+          if (ev?.id) setSelectedEvent(ev);
+        })
+        .catch(() => {});
+    }
+
+    // Listen for service worker notification click messages
+    if ("serviceWorker" in navigator) {
+      const handleMessage = (event: MessageEvent) => {
+        if (event.data?.type === "PULSE_OPEN_EVENT" && event.data.eventId) {
+          fetch(`/api/events/${encodeURIComponent(event.data.eventId)}`)
+            .then((r) => r.ok && r.json())
+            .then((ev: PulseEvent | null) => {
+              if (ev?.id) setSelectedEvent(ev);
+            })
+            .catch(() => {});
+        }
+      };
+      navigator.serviceWorker.addEventListener("message", handleMessage);
+      return () => navigator.serviceWorker.removeEventListener("message", handleMessage);
+    }
+  }, []);
+
   if (!hydrated) return <div className="min-h-screen bg-background" />;
   if (!profile) return <Onboarding />;
   if (selectedEvent)
@@ -164,6 +212,7 @@ function AppFrame({
           ))}
         </div>
       </nav>
+      <Toaster position="top-right" richColors closeButton />
     </div>
   );
 }
@@ -342,41 +391,264 @@ function MapView() {
 }
 
 function AlertsView({ onOpenEvent }: { onOpenEvent: (event: PulseEvent) => void }) {
-  const { profile } = useProfile();
+  const { profile, update } = useProfile();
   const query = useEvents();
+  const [subscribing, setSubscribing] = useState(false);
   const events = (query.data ?? []).filter(
     (event) => event.city.toLowerCase() === profile?.city.toLowerCase(),
   );
+
+  async function handleQuickEnablePush() {
+    if (!profile) return;
+    setSubscribing(true);
+    try {
+      const res = await subscribeToPush(profile);
+      if (res.success) {
+        update({ notifications: true });
+        toast.success("Real-time push alerts enabled!", {
+          description: `You will now receive instant push notifications for ${profile.city}.`,
+        });
+      } else {
+        toast.error("Could not enable push notifications", {
+          description: res.error,
+        });
+      }
+    } finally {
+      setSubscribing(false);
+    }
+  }
+
   return (
     <Page title="Relevant updates" eyebrow="Alerts">
-      <div className="space-y-3">
-        {events.map((event) => (
-          <button
-            key={event.id}
-            type="button"
-            onClick={() => onOpenEvent(event)}
-            className="flex w-full items-start gap-3 rounded-xl bg-card p-4 text-left ring-1 ring-border hover:ring-accent"
-          >
-            <Bell className="mt-1 size-4 text-accent" />
-            <span className="min-w-0 flex-1">
-              <span className="flex flex-wrap justify-between gap-2 font-medium">
-                {event.title}
-                <StatusBadge state={event.truth_state} />
+      <div className="space-y-4">
+        {!profile?.notifications ? (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-accent/40 bg-accent/5 p-4 sm:p-5 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-accent/15 text-accent">
+                <BellRing className="size-5 animate-pulse" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-foreground">
+                  Stay alerted in {profile?.city}
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Enable real-time push notifications to receive emergency and local signals the
+                  instant they occur.
+                </p>
+              </div>
+            </div>
+            <Button
+              size="sm"
+              disabled={subscribing}
+              onClick={() => void handleQuickEnablePush()}
+              className="text-xs gap-1.5"
+            >
+              {subscribing ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : (
+                <Bell className="size-3.5" />
+              )}
+              {subscribing ? "Enabling…" : "Enable Push Alerts"}
+            </Button>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between rounded-xl bg-emerald-500/10 px-3.5 py-2.5 text-xs text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+            <div className="flex items-center gap-2">
+              <span className="relative flex size-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex size-2 rounded-full bg-emerald-500"></span>
               </span>
-              <span className="mt-1 block text-xs text-muted-foreground">
-                {event.location_name} · {event.independent_sources} independent source
-                {event.independent_sources === 1 ? "" : "s"}
+              <span className="font-medium">
+                Real-time push notifications active for {profile?.city}
               </span>
-            </span>
-          </button>
-        ))}
+            </div>
+            <span className="text-[11px] opacity-80">Instant delivery enabled</span>
+          </div>
+        )}
+
+        {events.length === 0 ? (
+          <div className="rounded-xl border border-border bg-card p-8 text-center text-sm text-muted-foreground">
+            No active signals in {profile?.city}. When early reports or verified events arrive, you
+            will be notified in real-time.
+          </div>
+        ) : (
+          events.map((event) => (
+            <button
+              key={event.id}
+              type="button"
+              onClick={() => onOpenEvent(event)}
+              className="flex w-full items-start gap-3 rounded-xl bg-card p-4 text-left ring-1 ring-border hover:ring-accent transition-all"
+            >
+              <Bell className="mt-1 size-4 text-accent shrink-0" />
+              <span className="min-w-0 flex-1">
+                <span className="flex flex-wrap justify-between gap-2 font-medium">
+                  {event.title}
+                  <StatusBadge state={event.truth_state} />
+                </span>
+                <span className="mt-1 block text-xs text-muted-foreground">
+                  {event.location_name} · {event.independent_sources} independent source
+                  {event.independent_sources === 1 ? "" : "s"}
+                </span>
+              </span>
+            </button>
+          ))
+        )}
       </div>
     </Page>
   );
 }
 
+function NotificationSettingsSection() {
+  const { profile, update } = useProfile();
+  const [permission, setPermission] = useState<NotificationPermission | "unsupported">("default");
+  const [hasSubscription, setHasSubscription] = useState<boolean>(false);
+  const [busy, setBusy] = useState<boolean>(false);
+  const [testBusy, setTestBusy] = useState<boolean>(false);
+
+  useEffect(() => {
+    setPermission(getNotificationPermission());
+    void getExistingPushSubscription().then((sub) => setHasSubscription(Boolean(sub)));
+  }, []);
+
+  async function handleToggle(enable: boolean) {
+    setBusy(true);
+    try {
+      if (enable) {
+        const res = await subscribeToPush(profile);
+        if (res.success) {
+          update({ notifications: true });
+          setHasSubscription(true);
+          setPermission("granted");
+          toast.success("Push notifications enabled!", {
+            description: `You will receive instant alerts for signals in ${profile?.city || "your area"}.`,
+          });
+        } else {
+          toast.error("Could not enable push notifications", {
+            description: res.error,
+          });
+          setPermission(getNotificationPermission());
+        }
+      } else {
+        const res = await unsubscribeFromPush();
+        if (res.success) {
+          update({ notifications: false });
+          setHasSubscription(false);
+          toast.info("Push notifications disabled.");
+        }
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleTest() {
+    setTestBusy(true);
+    try {
+      const res = await sendTestPushNotification();
+      if (res.success) {
+        toast.success("Real-time push notification sent!", {
+          description: "Check your screen or notification center for the incoming alert.",
+        });
+      } else {
+        toast.error("Test notification failed", {
+          description: res.error,
+        });
+      }
+    } finally {
+      setTestBusy(false);
+    }
+  }
+
+  const isEnabled =
+    (profile?.notifications ?? false) && hasSubscription && permission === "granted";
+
+  return (
+    <div className="mt-6 border-t border-border pt-5 space-y-4">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2">
+            <Bell className="size-4 text-accent" />
+            <p className="text-sm font-semibold">Real-Time Push Notifications</p>
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Receive instant alerts when incidents and verified updates emerge around {profile?.city}
+            .
+          </p>
+        </div>
+        <div>
+          {permission === "denied" ? (
+            <span className="rounded-full bg-destructive/15 px-2.5 py-0.5 text-[11px] font-semibold text-destructive">
+              Blocked by Browser
+            </span>
+          ) : isEnabled ? (
+            <span className="rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+              Active
+            </span>
+          ) : (
+            <span className="rounded-full bg-muted px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground">
+              Disabled
+            </span>
+          )}
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-border bg-card/60 p-4 space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="max-w-md">
+            <p className="text-xs font-medium text-foreground">
+              {isEnabled ? "Alert delivery is active" : "Enable background & real-time alerts"}
+            </p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              {permission === "denied"
+                ? "Notification permissions were blocked. Click your browser URL lock/settings icon to allow notifications."
+                : isEnabled
+                  ? "Push notifications will arrive in real-time even when PULSE is minimized or tab is in background."
+                  : "Allow notifications to receive immediate signals in your local area."}
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {isEnabled && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 text-xs gap-1.5"
+                disabled={testBusy || busy}
+                onClick={() => void handleTest()}
+              >
+                {testBusy ? (
+                  <Loader2 className="size-3 animate-spin" />
+                ) : (
+                  <Send className="size-3" />
+                )}
+                {testBusy ? "Sending…" : "Send Test Push"}
+              </Button>
+            )}
+            <Button
+              variant={isEnabled ? "secondary" : "default"}
+              size="sm"
+              className="h-8 text-xs gap-1.5"
+              disabled={busy || permission === "unsupported"}
+              onClick={() => void handleToggle(!isEnabled)}
+            >
+              {busy ? (
+                <Loader2 className="size-3 animate-spin" />
+              ) : isEnabled ? (
+                <BellOff className="size-3" />
+              ) : (
+                <BellRing className="size-3" />
+              )}
+              {busy ? "Updating…" : isEnabled ? "Disable" : "Enable Push"}
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ProfileView() {
-  const { profile, requestGps, update, clear } = useProfile();
+  const { profile, requestGps, clear } = useProfile();
   const [locationOpen, setLocationOpen] = useState(false);
   return (
     <Page title="Your Pulse settings" eyebrow="Profile">
@@ -410,14 +682,7 @@ function ProfileView() {
             </Button>
           </div>
         </div>
-        <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
-          <p className="text-sm">Relevant alerts</p>
-          <input
-            type="checkbox"
-            checked={profile?.notifications ?? false}
-            onChange={(event) => update({ notifications: event.target.checked })}
-          />
-        </div>
+        <NotificationSettingsSection />
       </section>
       <Button variant="destructive" className="mt-4" onClick={clear}>
         Reset profile

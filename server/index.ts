@@ -4,6 +4,13 @@ import express from "express";
 import { randomUUID } from "node:crypto";
 import { analyzeReport, answerQuestion } from "./ai.js";
 import { events, evidence, getDb, reports, timeline } from "./db.js";
+import {
+  getVapidPublicKey,
+  savePushSubscription,
+  removePushSubscription,
+  sendTestNotification,
+  notifySubscribers,
+} from "./push.js";
 import type { PulseEvent } from "../src/lib/pulse/types.js";
 
 const app = express();
@@ -284,7 +291,8 @@ app.get("/api/events/:id/evidence", async (request, response) => {
 app.get("/api/reports", async (request, response) => {
   try {
     const db = await getDb();
-    const userId = typeof request.query["userId"] === "string" ? request.query["userId"] : undefined;
+    const userId =
+      typeof request.query["userId"] === "string" ? request.query["userId"] : undefined;
     response.json(
       await reports(db)
         .find(userId ? { user_id: userId } : {})
@@ -354,7 +362,18 @@ app.post("/api/reports", async (request, response) => {
       label: "First report received. Marked as an early signal.",
       tone: "signal",
     });
-    broadcast({ type: "event.created", eventId });
+    broadcast({ type: "event.created", eventId, event });
+    // Send real-time Web Push notification to subscribers
+    void notifySubscribers(db, {
+      title: `⚡ Signal in ${event.city}: ${event.title}`,
+      body: input.content.trim(),
+      eventId: event.id,
+      city: event.city,
+      lat: event.latitude,
+      lon: event.longitude,
+      url: `/?event=${event.id}`,
+      tag: `pulse-event-${event.id}`,
+    });
     // Guarantee AI analysis and updates are persisted before completing response (needed on serverless)
     await processReport(db, event, reportId, input);
     response.status(202).json({ reportId, eventId, createdEvent: true });
@@ -376,6 +395,89 @@ app.post("/api/ai/ask", async (request, response) => {
     response.json(await answerQuestion(request.body));
   } catch (error) {
     response.status(503).json({ error: errorMessage(error) });
+  }
+});
+
+// Push notification endpoints
+app.get("/api/push/vapid-public-key", (_request, response) => {
+  response.json({ publicKey: getVapidPublicKey() });
+});
+
+app.post("/api/push/subscribe", async (request, response) => {
+  try {
+    const { endpoint, keys, userId, city, latitude, longitude } = (request.body ?? {}) as {
+      endpoint?: string;
+      keys?: { p256dh: string; auth: string };
+      userId?: string;
+      city?: string;
+      latitude?: number;
+      longitude?: number;
+    };
+    if (!endpoint || !keys?.p256dh || !keys?.auth) {
+      response.status(400).json({ error: "Invalid push subscription object." });
+      return;
+    }
+    let db = null;
+    try {
+      db = await getDb();
+    } catch (err) {
+      console.warn("MongoDB connection deferred for push subscription:", err);
+    }
+    const record = await savePushSubscription(db, {
+      endpoint,
+      keys,
+      userId,
+      city,
+      latitude,
+      longitude,
+    });
+    response.json({ ok: true, subscriptionId: record.id });
+  } catch (error) {
+    response.status(500).json({ error: errorMessage(error) });
+  }
+});
+
+app.post("/api/push/unsubscribe", async (request, response) => {
+  try {
+    const { endpoint } = (request.body ?? {}) as { endpoint?: string };
+    if (!endpoint) {
+      response.status(400).json({ error: "Endpoint is required." });
+      return;
+    }
+    let db = null;
+    try {
+      db = await getDb();
+    } catch {
+      // ignore
+    }
+    await removePushSubscription(db, endpoint);
+    response.json({ ok: true });
+  } catch (error) {
+    response.status(500).json({ error: errorMessage(error) });
+  }
+});
+
+app.post("/api/push/test", async (request, response) => {
+  try {
+    const { endpoint } = (request.body ?? {}) as { endpoint?: string };
+    if (!endpoint) {
+      response.status(400).json({ error: "Subscription endpoint is required." });
+      return;
+    }
+    let db = null;
+    try {
+      db = await getDb();
+    } catch {
+      // ignore
+    }
+    const result = await sendTestNotification(db, endpoint);
+    if (!result.success) {
+      response.status(400).json({ ok: false, error: result.message });
+      return;
+    }
+    response.json({ ok: true, message: result.message });
+  } catch (error) {
+    response.status(500).json({ error: errorMessage(error) });
   }
 });
 
@@ -405,10 +507,14 @@ async function processReport(
     const now = new Date().toISOString();
     const claim = typeof analysis["claim"] === "string" ? analysis["claim"] : (input.content ?? "");
     const title = typeof analysis["title"] === "string" ? analysis["title"] : event.title;
-    const summary = typeof analysis["summary"] === "string" ? analysis["summary"] : event.description;
-    const category = typeof analysis["category"] === "string" ? analysis["category"] : event.category;
+    const summary =
+      typeof analysis["summary"] === "string" ? analysis["summary"] : event.description;
+    const category =
+      typeof analysis["category"] === "string" ? analysis["category"] : event.category;
     const locationGuess =
-      typeof analysis["location_guess"] === "string" ? analysis["location_guess"] : event.location_name;
+      typeof analysis["location_guess"] === "string"
+        ? analysis["location_guess"]
+        : event.location_name;
 
     await reports(db).updateOne(
       { id: reportId },
@@ -455,7 +561,25 @@ async function processReport(
         "AI analysis completed. The report remains an early signal pending independent confirmation.",
       tone: "neutral",
     });
-    broadcast({ type: "event.updated", eventId: event.id });
+    const updatedEvent = {
+      ...event,
+      title,
+      description: summary,
+      category,
+      location_name: locationGuess,
+      last_updated_at: now,
+    };
+    broadcast({ type: "event.updated", eventId: event.id, event: updatedEvent });
+    void notifySubscribers(db, {
+      title: `🔍 Update: ${title}`,
+      body: summary || "AI analysis completed. Status is being tracked.",
+      eventId: event.id,
+      city: event.city,
+      lat: event.latitude,
+      lon: event.longitude,
+      url: `/?event=${event.id}`,
+      tag: `pulse-update-${event.id}`,
+    });
   } catch (error) {
     console.error("Report analysis failed:", errorMessage(error));
   }

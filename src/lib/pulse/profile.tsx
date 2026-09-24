@@ -9,6 +9,7 @@ import {
 } from "react";
 
 import { cityByName, resolvePlace } from "./cities";
+import { syncPushSubscription } from "./push";
 import type { PulseProfile } from "./types";
 
 const STORAGE_KEY = "pulse.profile.v2";
@@ -83,6 +84,12 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     }
     setHydrated(true);
   }, []);
+
+  useEffect(() => {
+    if (profile && profile.notifications) {
+      void syncPushSubscription(profile);
+    }
+  }, [profile]);
 
   const persist = useCallback((next: PulseProfile | null) => {
     setProfile(next);

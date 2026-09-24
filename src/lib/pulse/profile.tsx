@@ -34,11 +34,15 @@ function getPosition(): Promise<GeolocationPosition> {
       reject(new Error("This device cannot share a location."));
       return;
     }
-    navigator.geolocation.getCurrentPosition(resolve, () => reject(new Error("Location permission was not granted.")), {
-      enableHighAccuracy: true,
-      timeout: 10000,
-      maximumAge: 60000,
-    });
+    navigator.geolocation.getCurrentPosition(
+      resolve,
+      () => reject(new Error("Location permission was not granted.")),
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 60000,
+      },
+    );
   });
 }
 
@@ -82,7 +86,13 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   const setCity = useCallback(
     (cityName: string) => {
       const c = cityByName(cityName);
-      update({ city: c.name, area: null, latitude: c.latitude, longitude: c.longitude, simulatedTravel: true });
+      update({
+        city: c.name,
+        area: null,
+        latitude: c.latitude,
+        longitude: c.longitude,
+        simulatedTravel: true,
+      });
     },
     [update],
   );

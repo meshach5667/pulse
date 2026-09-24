@@ -182,13 +182,11 @@ export async function runAnalysis(
   let analysis: ReportAnalysis;
   try {
     analysis = (await analyzeReport({
-      data: {
-        content: input.content,
-        locationName: input.locationName || null,
-        hasImage: input.hasImage,
-        hasVideo: input.hasVideo,
-        channel: input.channel,
-      },
+      content: input.content,
+      locationName: input.locationName || null,
+      hasImage: input.hasImage,
+      hasVideo: input.hasVideo,
+      channel: input.channel,
     })) as ReportAnalysis;
   } catch (error) {
     await supabase

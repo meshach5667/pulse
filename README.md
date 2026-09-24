@@ -1,21 +1,18 @@
-# Pulse Local Intelligence
+# PULSE Local Intelligence
 
-PULSE is a real-time, location-aware intelligence app that helps people understand what is happening nearby while clearly separating early signals, corroborated reports, confirmed events, disputed claims, and expired information. It combines live local reports, transparent evidence, AI-assisted analysis, and a GPS-based feed without presenting uncertainty as fact.
+PULSE is a real-time, location-aware app for understanding nearby reports while clearly separating early signals, corroborated information, confirmed events, disputed claims, and expired information.
 
-## Setup and Run
+## Setup and Usage
 
-1. Install dependencies:
+```bash
+npm install
+npm run dev
+```
 
-   ```bash
-   npm install
-   ```
+Open `http://localhost:5173`, enter your name, and allow browser location access. Use the bottom navigation to view the feed, map, report form, alerts, and profile; desktop users also get the sidebar, Ask Pulse, and Demo mode.
 
-2. Copy `.env.example` to `.env` and set `MONGODB_URI`, `MONGODB_DB`, and `GEMINI_API_KEY`.
+Copy `.env.example` to `.env` and configure the Supabase variables for live data. `VITE_AI_API_URL` is optional; without it, the app uses a grounded local fallback for Ask Pulse and report analysis.
 
-3. Start the Vite frontend and Express API:
+## Maps
 
-   ```bash
-   npm run dev
-   ```
-
-Open `http://localhost:5173` and allow location access when prompted.
+Google Maps is not required. PULSE uses Leaflet with OpenStreetMap tiles, which is sufficient for event markers and does not require a Google API key. Add Google Maps only if the product later needs Google-specific places, traffic, directions, or geocoding services.

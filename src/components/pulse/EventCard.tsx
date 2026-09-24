@@ -1,6 +1,5 @@
 import { ChevronRight } from "lucide-react";
 import { useState } from "react";
-import { Link } from "@tanstack/react-router";
 
 import { StatusBadge, StatusRail } from "@/components/pulse/StatusBadge";
 import { EvidencePanel, useEvidence } from "@/components/pulse/EvidencePanel";
@@ -18,10 +17,12 @@ export function EventCard({
   event,
   distance,
   index = 0,
+  onOpen,
 }: {
   event: PulseEvent;
   distance: number;
   index?: number;
+  onOpen?: (event: PulseEvent) => void;
 }) {
   const [open, setOpen] = useState(false);
   const { data: evidence } = useEvidence(event.id, open);
@@ -90,14 +91,14 @@ export function EventCard({
             >
               {open ? "Hide evidence" : "Why am I seeing this?"}
             </button>
-            <Link
-              to="/event/$id"
-              params={{ id: event.id }}
+            <button
+              type="button"
+              onClick={() => onOpen?.(event)}
               className="flex items-center gap-0.5 text-[11px] font-medium text-muted-foreground hover:text-foreground"
             >
               Timeline
               <ChevronRight className="size-3.5" />
-            </Link>
+            </button>
           </div>
         </div>
       </div>

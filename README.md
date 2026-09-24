@@ -1,6 +1,8 @@
 # PULSE Local Intelligence
 
 PULSE gives you a real-time, location-based view of what’s happening around you, separating early reports from verified information.
+Instead of showing you a generic feed of national news, PULSE focuses on what matters where you are right now.
+As you move from one location to another, the information you see changes with you. A user in Abuja might see reports about an accident, road closure, security incident, flood, protest, power outage, or other developing event nearby. If they travel toward Kaduna, PULSE progressively shifts the feed toward relevant reports along their new location and route..
 
 ## Setup and Usage
 

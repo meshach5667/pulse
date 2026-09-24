@@ -1,4 +1,4 @@
-# PULSE Local Intelligence
+# PULSE
 
 PULSE gives you a real-time, location-based view of what’s happening around you, separating early reports from verified information.
 Instead of showing you a generic feed of national news, PULSE focuses on what matters where you are right now.

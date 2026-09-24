@@ -1,14 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Bell,
-  CheckCircle2,
-  Circle,
   FileText,
   Image,
   LayoutList,
   Map as MapIcon,
   MessageSquareText,
-  Play,
   RefreshCw,
   Send,
   SquarePen,
@@ -133,24 +130,14 @@ function AppFrame({
               <MessageSquareText className="size-4" />
               Ask Pulse
             </button>
-            <button
-              type="button"
-              onClick={() => setView("demo")}
-              className={cn(
-                "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium",
-                view === "demo"
-                  ? "bg-card text-accent ring-1 ring-border"
-                  : "text-muted-foreground hover:bg-card/60 hover:text-foreground",
-              )}
-            >
-              <Play className="size-4" />
-              Demo mode
-            </button>
           </nav>
-          <p className="mt-auto rounded-lg bg-card/70 p-3 text-[11px] leading-relaxed text-muted-foreground ring-1 ring-border">
-            Pulse shows information immediately and labels uncertainty. It never declares a place
-            safe.
-          </p>
+          <div className="mt-auto rounded-xl bg-card/70 p-3.5 text-xs leading-relaxed text-muted-foreground ring-1 ring-border">
+            <p className="font-semibold text-foreground">Real-time Local Intelligence</p>
+            <p className="mt-1 text-[11px] leading-relaxed">
+              Pulse gives you a real-time, location-based view of what’s happening around you,
+              separating early reports from verified information.
+            </p>
+          </div>
         </aside>
         <div className="min-w-0 flex-1">
           <PulseHeader onNavigate={onNavigate} />
@@ -193,7 +180,6 @@ function ViewContent({
   if (view === "alerts") return <AlertsView onOpenEvent={onOpenEvent} />;
   if (view === "profile") return <ProfileView />;
   if (view === "ask") return <AskView />;
-  if (view === "demo") return <DemoView />;
   return <HomeView onOpenEvent={onOpenEvent} />;
 }
 
@@ -225,8 +211,7 @@ function HomeView({ onOpenEvent }: { onOpenEvent: (event: PulseEvent) => void })
           What&apos;s happening around {profile?.city}?
         </h1>
         <p className="mt-1.5 max-w-2xl text-sm text-muted-foreground">
-          Signals are ranked by distance, freshness and independent evidence. Read the status before
-          acting on a claim.
+          Real-time reports ranked by proximity, recency, and verified evidence.
         </p>
       </section>
       <div className="flex items-center justify-between">
@@ -346,7 +331,7 @@ function MapView() {
   return (
     <Page title={`Signals around ${profile?.city}`} eyebrow="Live map">
       <p className="mb-3 text-sm text-muted-foreground">
-        Markers show reports, not safe or unsafe zones.
+        Markers show local reports and events colored by their verification status.
       </p>
       <div
         ref={ref}
@@ -481,53 +466,6 @@ function AskView() {
             {answer}
           </p>
         ) : null}
-      </section>
-    </Page>
-  );
-}
-
-function DemoView() {
-  const [step, setStep] = useState(0);
-  const steps = [
-    "First report received: early signal",
-    "Copied reports identified: still early signal",
-    "Independent eyewitnesses: corroborated",
-    "Credible local source: confirmed",
-    "Contradictory report: disputed evidence shown",
-  ];
-  return (
-    <Page title="How an event earns a truth state" eyebrow="Demo mode">
-      <section className="glass max-w-3xl rounded-2xl p-4 sm:p-6">
-        <div className="space-y-3">
-          {steps.map((item, index) => (
-            <div
-              key={item}
-              className={cn(
-                "flex gap-3 border-l pl-4 text-sm",
-                index <= step
-                  ? "border-accent text-foreground"
-                  : "border-border text-muted-foreground",
-              )}
-            >
-              <span>
-                {index <= step ? (
-                  <CheckCircle2 className="size-4 text-accent" />
-                ) : (
-                  <Circle className="size-4" />
-                )}
-              </span>
-              {item}
-            </div>
-          ))}
-        </div>
-        <Button
-          className="mt-6"
-          onClick={() => setStep((value) => Math.min(value + 1, steps.length - 1))}
-          disabled={step === steps.length - 1}
-        >
-          Next evidence
-          <Play />
-        </Button>
       </section>
     </Page>
   );

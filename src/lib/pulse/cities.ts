@@ -118,9 +118,6 @@ export const CITIES: City[] = [
   { name: "Abakaliki", latitude: 6.3249, longitude: 8.1137, region: "Ebonyi State" },
 ];
 
-/** Cities used by the Simulate Travel demo. */
-export const TRAVEL_ROUTE = ["Abuja", "Kaduna", "Kano", "Lagos", "Ibadan"];
-
 const FALLBACK: City = CITIES[0] as City;
 
 export function cityByName(name: string): City {

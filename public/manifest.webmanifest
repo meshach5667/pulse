@@ -1,7 +1,7 @@
 {
   "name": "PULSE Local Intelligence",
   "short_name": "PULSE",
-  "description": "Know what's happening around you.",
+  "description": "Pulse gives you a real-time, location-based view of what’s happening around you, separating early reports from verified information.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#f3f5f8",

@@ -126,14 +126,16 @@ export function Onboarding() {
         <p className="text-sm font-bold tracking-[0.2em]">PULSE</p>
         <div className="space-y-4">
           <h2 className="text-4xl font-semibold leading-tight tracking-tight">
-            Information travels fast. Pulse shows how much of it is established.
+            Know what&apos;s happening around you in real time.
           </h2>
-          <p className="max-w-md text-sm opacity-70">
-            Early signal, corroborated, confirmed, disputed, false, expired. Every state explained,
-            every source counted once.
+          <p className="max-w-md text-sm opacity-80 leading-relaxed">
+            Pulse gives you a real-time, location-based view of what’s happening in your area,
+            clearly separating early community reports from verified information.
           </p>
         </div>
-        <p className="text-xs opacity-50">Pulse never declares a location safe.</p>
+        <p className="text-xs opacity-60">
+          Verified evidence · Transparent confidence · Local context
+        </p>
       </section>
 
       <main className="mx-auto flex w-full max-w-md flex-col justify-center px-6 py-12">
@@ -145,7 +147,8 @@ export function Onboarding() {
           Know what&apos;s happening around you.
         </h1>
         <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-          Real-time, verified local intelligence for your community.
+          Pulse gives you a real-time, location-based view of what’s happening around you,
+          separating early reports from verified information.
         </p>
 
         <div className="mt-6 space-y-2">

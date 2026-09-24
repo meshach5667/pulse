@@ -1,6 +1,6 @@
 # PULSE Local Intelligence
 
-PULSE is a real-time, location-aware app for understanding nearby reports while clearly separating early signals, corroborated information, confirmed events, disputed claims, and expired information.
+PULSE gives you a real-time, location-based view of what’s happening around you, separating early reports from verified information.
 
 ## Setup and Usage
 
@@ -9,7 +9,7 @@ npm install
 npm run dev
 ```
 
-Open `http://localhost:5173`, enter your name, and allow browser location access. Use the bottom navigation to view the feed, map, report form, alerts, and profile; desktop users also get the sidebar, Ask Pulse, and Demo mode.
+Open `http://localhost:5173`, enter your name, and allow browser location access. Use the bottom navigation to view the feed, map, report form, alerts, and profile; desktop users also get the sidebar and Ask Pulse.
 
 Copy `.env.example` to `.env` and configure `MONGODB_URI`, `MONGODB_DB`, `GEMINI_API_KEY`, and `GEMINI_MODEL`. The browser talks to the Express API; Gemini is called server-side so the API key is never bundled into the frontend.
 

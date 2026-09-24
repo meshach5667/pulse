@@ -73,7 +73,7 @@ export function EvidencePanel({
         ) : null}
       </ul>
       <p className="mt-2.5 border-t border-border pt-2 text-[10.5px] leading-relaxed text-muted-foreground">
-        {STATUS_META[event.truth_state].meaning} Pulse does not describe any location as safe.
+        {STATUS_META[event.truth_state].meaning}
       </p>
     </div>
   );

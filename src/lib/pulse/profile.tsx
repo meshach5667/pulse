@@ -8,22 +8,39 @@ import {
   type ReactNode,
 } from "react";
 
-import { resolvePlace } from "./cities";
+import { cityByName, resolvePlace } from "./cities";
 import type { PulseProfile } from "./types";
 
-const STORAGE_KEY = "pulse.profile.v1";
+const STORAGE_KEY = "pulse.profile.v2";
+
+type Result = { ok: boolean; message: string };
 
 interface ProfileContextValue {
   profile: PulseProfile | null;
   hydrated: boolean;
-  save: (profile: PulseProfile) => void;
   update: (patch: Partial<PulseProfile>) => void;
+  setCity: (cityName: string) => void;
   clear: () => void;
-  requestGps: () => Promise<{ ok: boolean; message: string }>;
-  createFromGps: (name: string) => Promise<{ ok: boolean; message: string }>;
+  requestGps: () => Promise<Result>;
+  createFromGps: (name: string) => Promise<Result>;
+  createManual: (name: string, city: string) => void;
 }
 
 const ProfileContext = createContext<ProfileContextValue | null>(null);
+
+function getPosition(): Promise<GeolocationPosition> {
+  return new Promise((resolve, reject) => {
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      reject(new Error("This device cannot share a location."));
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(resolve, () => reject(new Error("Location permission was not granted.")), {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 60000,
+    });
+  });
+}
 
 export function ProfileProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<PulseProfile | null>(null);
@@ -32,10 +49,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     try {
       const raw = window.localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const saved = JSON.parse(raw) as PulseProfile;
-        if (saved.gpsGranted) setProfile(saved);
-      }
+      if (raw) setProfile(JSON.parse(raw) as PulseProfile);
     } catch {
       /* ignore corrupt storage */
     }
@@ -65,55 +79,69 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const requestGps = useCallback(async (): Promise<{ ok: boolean; message: string }> => {
-    if (typeof navigator === "undefined" || !navigator.geolocation) {
-      return { ok: false, message: "This device cannot share a location." };
+  const setCity = useCallback(
+    (cityName: string) => {
+      const c = cityByName(cityName);
+      update({ city: c.name, area: null, latitude: c.latitude, longitude: c.longitude, simulatedTravel: true });
+    },
+    [update],
+  );
+
+  const requestGps = useCallback(async (): Promise<Result> => {
+    try {
+      const pos = await getPosition();
+      const place = await resolvePlace(pos.coords.latitude, pos.coords.longitude);
+      update({
+        latitude: pos.coords.latitude,
+        longitude: pos.coords.longitude,
+        city: place.city,
+        area: place.area,
+        gpsGranted: true,
+        simulatedTravel: false,
+      });
+      return { ok: true, message: `Location set to ${place.city}.` };
+    } catch (e) {
+      return { ok: false, message: (e as Error).message };
     }
-    return new Promise((resolve) => {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          void resolvePlace(pos.coords.latitude, pos.coords.longitude).then((place) => {
-            update({
-              latitude: pos.coords.latitude,
-              longitude: pos.coords.longitude,
-              city: place,
-              gpsGranted: true,
-              simulatedTravel: false,
-            });
-            resolve({ ok: true, message: `Location set near ${place}.` });
-          });
-        },
-        () => resolve({ ok: false, message: "Location permission was not granted." }),
-        { enableHighAccuracy: true, timeout: 8000 },
-      );
-    });
   }, [update]);
 
   const createFromGps = useCallback(
-    async (name: string): Promise<{ ok: boolean; message: string }> => {
-      if (typeof navigator === "undefined" || !navigator.geolocation) {
-        return { ok: false, message: "This device cannot share a location." };
+    async (name: string): Promise<Result> => {
+      try {
+        const pos = await getPosition();
+        const place = await resolvePlace(pos.coords.latitude, pos.coords.longitude);
+        persist({
+          id: crypto.randomUUID(),
+          name: name.trim() || "Anonymous",
+          city: place.city,
+          area: place.area,
+          latitude: pos.coords.latitude,
+          longitude: pos.coords.longitude,
+          gpsGranted: true,
+          notifications: true,
+          simulatedTravel: false,
+        });
+        return { ok: true, message: `Location set to ${place.city}.` };
+      } catch (e) {
+        return { ok: false, message: (e as Error).message };
       }
-      return new Promise((resolve) => {
-        navigator.geolocation.getCurrentPosition(
-          (pos) => {
-            void resolvePlace(pos.coords.latitude, pos.coords.longitude).then((place) => {
-              persist({
-                id: crypto.randomUUID(),
-                name: name.trim() || "Anonymous",
-                city: place,
-                latitude: pos.coords.latitude,
-                longitude: pos.coords.longitude,
-                gpsGranted: true,
-                notifications: true,
-                simulatedTravel: false,
-              });
-              resolve({ ok: true, message: `Location set near ${place}.` });
-            });
-          },
-          () => resolve({ ok: false, message: "Location permission was not granted." }),
-          { enableHighAccuracy: true, timeout: 8000 },
-        );
+    },
+    [persist],
+  );
+
+  const createManual = useCallback(
+    (name: string, cityName: string) => {
+      const c = cityByName(cityName);
+      persist({
+        id: crypto.randomUUID(),
+        name: name.trim() || "Anonymous",
+        city: c.name,
+        area: null,
+        latitude: c.latitude,
+        longitude: c.longitude,
+        gpsGranted: false,
+        notifications: true,
+        simulatedTravel: false,
       });
     },
     [persist],
@@ -123,13 +151,14 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     () => ({
       profile,
       hydrated,
-      save: persist,
       update,
+      setCity,
       clear: () => persist(null),
       requestGps,
       createFromGps,
+      createManual,
     }),
-    [profile, hydrated, persist, update, requestGps, createFromGps],
+    [profile, hydrated, update, setCity, persist, requestGps, createFromGps, createManual],
   );
 
   return <ProfileContext.Provider value={value}>{children}</ProfileContext.Provider>;
@@ -139,22 +168,4 @@ export function useProfile(): ProfileContextValue {
   const ctx = useContext(ProfileContext);
   if (!ctx) throw new Error("useProfile must be used inside ProfileProvider");
   return ctx;
-}
-
-export function makeProfile(
-  name: string,
-  place: string,
-  latitude: number,
-  longitude: number,
-): PulseProfile {
-  return {
-    id: crypto.randomUUID(),
-    name: name.trim() || "Anonymous",
-    city: place,
-    latitude,
-    longitude,
-    gpsGranted: true,
-    notifications: true,
-    simulatedTravel: false,
-  };
 }

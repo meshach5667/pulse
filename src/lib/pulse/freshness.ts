@@ -19,7 +19,7 @@ export interface Freshness {
 
 export function computeFreshness(event: PulseEvent, now: number = Date.now()): Freshness {
   const minutes = (now - new Date(event.last_updated_at).getTime()) / 60000;
-  const halfLife = HALF_LIFE[event.category] ?? HALF_LIFE.general;
+  const halfLife = HALF_LIFE[event.category] ?? 90;
   const score = Math.max(0, Math.min(1, Math.pow(0.5, minutes / halfLife)));
 
   if (event.truth_state === "expired" || score < 0.2) {

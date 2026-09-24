@@ -72,6 +72,7 @@ export interface PulseReport {
 }
 
 export interface ReportAnalysis {
+  title?: string;
   claim?: string;
   location_guess?: string;
   language?: string;
@@ -88,6 +89,7 @@ export interface PulseProfile {
   id: string;
   name: string;
   city: string;
+  area?: string | null;
   latitude: number;
   longitude: number;
   gpsGranted: boolean;

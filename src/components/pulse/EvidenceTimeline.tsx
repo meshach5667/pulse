@@ -22,7 +22,7 @@ export function EvidenceTimeline({ entries }: { entries: PulseTimelineEntry[] })
           <span
             className={cn(
               "absolute -left-[21px] top-1 size-2.5 rounded-full ring-2 ring-background",
-              TONE_DOT[entry.tone] ?? TONE_DOT.neutral,
+              TONE_DOT[entry.tone] ?? "bg-disputed",
             )}
           />
           <p className="tabular font-mono text-[11px] text-muted-foreground">

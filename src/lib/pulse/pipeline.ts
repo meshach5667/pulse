@@ -208,7 +208,7 @@ export async function runAnalysis(
     .update({
       status: "analyzed",
       extracted_claim: analysis.claim ?? null,
-      ai_analysis: analysis as unknown as Record<string, unknown>,
+      ai_analysis: JSON.parse(JSON.stringify(analysis)),
     })
     .eq("id", reportId);
 
@@ -277,7 +277,16 @@ export async function recomputeEvent(eventId: string, analysis?: ReportAnalysis)
     else state = "early_signal";
   }
 
-  const patch: Record<string, unknown> = {
+  const patch: {
+    truth_state: TruthState;
+    independent_sources: number;
+    freshness_score: number;
+    last_updated_at: string;
+    title?: string;
+    description?: string;
+    category?: string;
+    location_name?: string;
+  } = {
     truth_state: state,
     independent_sources: independent,
     freshness_score: 1,

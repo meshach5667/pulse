@@ -11,6 +11,14 @@ const clients = new Set<express.Response>();
 app.use(cors());
 app.use(express.json({ limit: "10mb" }));
 
+// Normalize rewritten URLs from Vercel so routes matching /api/* always work
+app.use((req, _res, next) => {
+  if (req.url && !req.url.startsWith("/api")) {
+    req.url = `/api${req.url.startsWith("/") ? "" : "/"}${req.url}`;
+  }
+  next();
+});
+
 interface GeocodeResult {
   city: string;
   area: string | null;
@@ -24,8 +32,8 @@ interface GeocodeResult {
 const geocodeCache = new Map<string, { data: GeocodeResult; time: number }>();
 
 app.get("/api/geocode/reverse", async (request, response) => {
-  const lat = Number(request.query.lat);
-  const lon = Number(request.query.lon);
+  const lat = Number(request.query["lat"]);
+  const lon = Number(request.query["lon"]);
   if (Number.isNaN(lat) || Number.isNaN(lon)) {
     response.status(400).json({ error: "Invalid coordinates" });
     return;
@@ -55,23 +63,23 @@ app.get("/api/geocode/reverse", async (request, response) => {
         display_name?: string;
         address?: Record<string, string>;
       };
-      const addr = data.address ?? {};
-      const state = addr.state || addr.province || addr.region || null;
+      const addr: Record<string, string | undefined> = data.address ?? {};
+      const state = addr["state"] || addr["province"] || addr["region"] || null;
       let city =
-        addr.city ||
-        addr.town ||
-        addr.municipality ||
-        addr.county ||
-        addr.city_district ||
-        addr.state_district ||
+        addr["city"] ||
+        addr["town"] ||
+        addr["municipality"] ||
+        addr["county"] ||
+        addr["city_district"] ||
+        addr["state_district"] ||
         null;
       let area =
-        addr.suburb ||
-        addr.neighbourhood ||
-        addr.district ||
-        addr.village ||
-        addr.quarter ||
-        addr.residential ||
+        addr["suburb"] ||
+        addr["neighbourhood"] ||
+        addr["district"] ||
+        addr["village"] ||
+        addr["quarter"] ||
+        addr["residential"] ||
         null;
 
       // Special normalization for FCT / Abuja
@@ -96,7 +104,7 @@ app.get("/api/geocode/reverse", async (request, response) => {
           city,
           area: area && area.toLowerCase() !== city.toLowerCase() ? area : null,
           state,
-          country: addr.country ?? null,
+          country: addr["country"] ?? null,
           display_name: data.display_name ?? `${city}, ${state ?? ""}`,
           latitude: lat,
           longitude: lon,
@@ -157,7 +165,8 @@ app.get("/api/geocode/reverse", async (request, response) => {
 });
 
 app.get("/api/geocode/search", async (request, response) => {
-  const query = typeof request.query.q === "string" ? request.query.q.trim() : "";
+  const qVal = request.query["q"];
+  const query = typeof qVal === "string" ? qVal.trim() : "";
   if (!query || query.length < 2) {
     response.json([]);
     return;
@@ -182,14 +191,14 @@ app.get("/api/geocode/search", async (request, response) => {
         address?: Record<string, string>;
       }>;
       const results = list.map((item) => {
-        const addr = item.address ?? {};
-        const state = addr.state || addr.province || addr.region || null;
+        const addr: Record<string, string | undefined> = item.address ?? {};
+        const state = addr["state"] || addr["province"] || addr["region"] || null;
         let city =
-          addr.city ||
-          addr.town ||
-          addr.municipality ||
-          addr.county ||
-          addr.state_district ||
+          addr["city"] ||
+          addr["town"] ||
+          addr["municipality"] ||
+          addr["county"] ||
+          addr["state_district"] ||
           query;
         if (
           state &&
@@ -200,9 +209,9 @@ app.get("/api/geocode/search", async (request, response) => {
         }
         return {
           city,
-          area: addr.suburb || addr.neighbourhood || addr.district || null,
+          area: addr["suburb"] || addr["neighbourhood"] || addr["district"] || null,
           state,
-          country: addr.country ?? null,
+          country: addr["country"] ?? null,
           display_name: item.display_name,
           latitude: Number.parseFloat(item.lat),
           longitude: Number.parseFloat(item.lon),
@@ -218,13 +227,14 @@ app.get("/api/geocode/search", async (request, response) => {
   response.json([]);
 });
 
-app.get("/api/health", (_request, response) =>
-  response.json({ ok: true, database: "mongodb", ai: Boolean(process.env.GEMINI_API_KEY) }),
+app.get(["/api", "/api/health"], (_request, response) =>
+  response.json({ ok: true, database: "mongodb", ai: Boolean(process.env["GEMINI_API_KEY"]) }),
 );
+
 app.get("/api/events", async (request, response) => {
   try {
     const db = await getDb();
-    const city = typeof request.query.city === "string" ? request.query.city : undefined;
+    const city = typeof request.query["city"] === "string" ? request.query["city"] : undefined;
     response.json(
       await events(db)
         .find(city ? { city } : {})
@@ -235,6 +245,7 @@ app.get("/api/events", async (request, response) => {
     response.status(503).json({ error: errorMessage(error) });
   }
 });
+
 app.get("/api/events/stream", (_request, response) => {
   response.setHeader("Content-Type", "text/event-stream");
   response.setHeader("Cache-Control", "no-cache");
@@ -244,31 +255,36 @@ app.get("/api/events/stream", (_request, response) => {
   response.write(`data: ${JSON.stringify({ connected: true })}\n\n`);
   response.on("close", () => clients.delete(response));
 });
+
 app.get("/api/events/:id", async (request, response) => {
   try {
     const db = await getDb();
-    response.json(await events(db).findOne({ id: request.params.id }));
+    const id = request.params["id"];
+    response.json(await events(db).findOne({ id }));
   } catch (error) {
     response.status(503).json({ error: errorMessage(error) });
   }
 });
+
 app.get("/api/events/:id/evidence", async (request, response) => {
   try {
     const db = await getDb();
+    const eventId = request.params["id"];
     const [items, history, eventReports] = await Promise.all([
-      evidence(db).find({ event_id: request.params.id }).sort({ created_at: 1 }).toArray(),
-      timeline(db).find({ event_id: request.params.id }).sort({ occurred_at: 1 }).toArray(),
-      reports(db).find({ event_id: request.params.id }).sort({ created_at: 1 }).toArray(),
+      evidence(db).find({ event_id: eventId }).sort({ created_at: 1 }).toArray(),
+      timeline(db).find({ event_id: eventId }).sort({ occurred_at: 1 }).toArray(),
+      reports(db).find({ event_id: eventId }).sort({ created_at: 1 }).toArray(),
     ]);
     response.json({ evidence: items, timeline: history, reports: eventReports });
   } catch (error) {
     response.status(503).json({ error: errorMessage(error) });
   }
 });
+
 app.get("/api/reports", async (request, response) => {
   try {
     const db = await getDb();
-    const userId = typeof request.query.userId === "string" ? request.query.userId : undefined;
+    const userId = typeof request.query["userId"] === "string" ? request.query["userId"] : undefined;
     response.json(
       await reports(db)
         .find(userId ? { user_id: userId } : {})
@@ -279,9 +295,10 @@ app.get("/api/reports", async (request, response) => {
     response.status(503).json({ error: errorMessage(error) });
   }
 });
+
 app.post("/api/reports", async (request, response) => {
   try {
-    const input = request.body as {
+    const input = (request.body ?? {}) as {
       userId?: string;
       content?: string;
       city?: string;
@@ -291,8 +308,10 @@ app.post("/api/reports", async (request, response) => {
       channel?: string;
       media?: string[];
     };
-    if (!input.content?.trim())
-      return response.status(400).json({ error: "Report content is required." });
+    if (!input.content?.trim()) {
+      response.status(400).json({ error: "Report content is required." });
+      return;
+    }
     const db = await getDb();
     const now = new Date().toISOString();
     const eventId = randomUUID();
@@ -317,7 +336,7 @@ app.post("/api/reports", async (request, response) => {
     await reports(db).insertOne({
       id: reportId,
       event_id: eventId,
-      user_id: input.userId,
+      user_id: input.userId ?? "anonymous",
       content: input.content,
       location_name: input.locationName ?? null,
       latitude: input.latitude ?? null,
@@ -336,12 +355,14 @@ app.post("/api/reports", async (request, response) => {
       tone: "signal",
     });
     broadcast({ type: "event.created", eventId });
+    // Guarantee AI analysis and updates are persisted before completing response (needed on serverless)
+    await processReport(db, event, reportId, input);
     response.status(202).json({ reportId, eventId, createdEvent: true });
-    void processReport(db, event, reportId, input);
   } catch (error) {
     response.status(503).json({ error: errorMessage(error) });
   }
 });
+
 app.post("/api/ai/analyze", async (request, response) => {
   try {
     response.json(await analyzeReport(request.body));
@@ -349,6 +370,7 @@ app.post("/api/ai/analyze", async (request, response) => {
     response.status(503).json({ error: errorMessage(error) });
   }
 });
+
 app.post("/api/ai/ask", async (request, response) => {
   try {
     response.json(await answerQuestion(request.body));
@@ -361,23 +383,39 @@ async function processReport(
   db: Awaited<ReturnType<typeof getDb>>,
   event: PulseEvent,
   reportId: string,
-  input: Record<string, unknown>,
+  input: {
+    userId?: string;
+    content?: string;
+    city?: string;
+    latitude?: number;
+    longitude?: number;
+    locationName?: string;
+    channel?: string;
+    media?: string[];
+  },
 ) {
   try {
     const analysis = await analyzeReport({
-      content: String(input.content),
+      content: String(input.content ?? ""),
       locationName: typeof input.locationName === "string" ? input.locationName : null,
       channel: String(input.channel ?? "text"),
       hasImage: false,
       hasVideo: false,
     });
     const now = new Date().toISOString();
+    const claim = typeof analysis["claim"] === "string" ? analysis["claim"] : (input.content ?? "");
+    const title = typeof analysis["title"] === "string" ? analysis["title"] : event.title;
+    const summary = typeof analysis["summary"] === "string" ? analysis["summary"] : event.description;
+    const category = typeof analysis["category"] === "string" ? analysis["category"] : event.category;
+    const locationGuess =
+      typeof analysis["location_guess"] === "string" ? analysis["location_guess"] : event.location_name;
+
     await reports(db).updateOne(
       { id: reportId },
       {
         $set: {
           status: "analyzed",
-          extracted_claim: String(analysis.claim ?? input.content),
+          extracted_claim: claim,
           ai_analysis: analysis,
         },
       },
@@ -393,17 +431,17 @@ async function processReport(
       excluded: false,
       exclusion_reason: null,
       independence_signals: ["submitter location attached"],
-      analysis: String(analysis.summary ?? "Analysis complete."),
+      analysis: summary || "Analysis complete.",
       created_at: now,
     });
     await events(db).updateOne(
       { id: event.id },
       {
         $set: {
-          title: String(analysis.title ?? event.title),
-          description: String(analysis.summary ?? event.description),
-          category: String(analysis.category ?? event.category),
-          location_name: String(analysis.location_guess ?? event.location_name),
+          title,
+          description: summary,
+          category,
+          location_name: locationGuess,
           independent_sources: 1,
           last_updated_at: now,
         },
@@ -422,15 +460,18 @@ async function processReport(
     console.error("Report analysis failed:", errorMessage(error));
   }
 }
+
 function broadcast(payload: unknown) {
   for (const client of clients) client.write(`data: ${JSON.stringify(payload)}\n\n`);
 }
+
 function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Service unavailable";
 }
 
 export default app;
-if (!process.env.VERCEL) {
-  const port = Number(process.env.PORT ?? 8787);
+
+if (!process.env["VERCEL"]) {
+  const port = Number(process.env["PORT"] ?? 8787);
   app.listen(port, () => console.log(`PULSE API listening on http://localhost:${port}`));
 }

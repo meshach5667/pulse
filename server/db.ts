@@ -6,13 +6,13 @@ import type {
   PulseTimelineEntry,
 } from "../src/lib/pulse/types.js";
 
-const client = new MongoClient(process.env.MONGODB_URI ?? "mongodb://127.0.0.1:27017");
+const client = new MongoClient(process.env["MONGODB_URI"] ?? "mongodb://127.0.0.1:27017");
 let database: Db | undefined;
 
 export async function getDb(): Promise<Db> {
   if (!database) {
     await client.connect();
-    database = client.db(process.env.MONGODB_DB ?? "pulse");
+    database = client.db(process.env["MONGODB_DB"] ?? "pulse");
     await seedDemo(database);
   }
   return database;

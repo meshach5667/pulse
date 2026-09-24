@@ -234,13 +234,13 @@ export async function resolvePlace(latitude: number, longitude: number): Promise
           longitude,
           data.city,
           data.area ?? null,
-          data.state,
+          data.state ?? null,
         );
         return {
           city,
           area,
-          state: data.state,
-          country: data.country,
+          state: data.state ?? null,
+          country: data.country ?? null,
         };
       }
     }
@@ -264,18 +264,23 @@ export async function resolvePlace(latitude: number, longitude: number): Promise
       const data = (await res.json()) as {
         address?: Record<string, string>;
       };
-      const addr = data.address ?? {};
-      const state = addr.state || addr.province || addr.region || null;
+      const addr: Record<string, string | undefined> = data.address ?? {};
+      const state = addr["state"] || addr["province"] || addr["region"] || null;
       let city =
-        addr.city ||
-        addr.town ||
-        addr.municipality ||
-        addr.county ||
-        addr.city_district ||
-        addr.state_district ||
+        addr["city"] ||
+        addr["town"] ||
+        addr["municipality"] ||
+        addr["county"] ||
+        addr["city_district"] ||
+        addr["state_district"] ||
         null;
       const area =
-        addr.suburb || addr.neighbourhood || addr.district || addr.village || addr.quarter || null;
+        addr["suburb"] ||
+        addr["neighbourhood"] ||
+        addr["district"] ||
+        addr["village"] ||
+        addr["quarter"] ||
+        null;
 
       if (
         state &&
@@ -297,7 +302,7 @@ export async function resolvePlace(latitude: number, longitude: number): Promise
           city: refinedCity,
           area: refinedArea,
           state,
-          country: addr.country ?? null,
+          country: addr["country"] ?? null,
         };
       }
     }

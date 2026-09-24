@@ -22,6 +22,7 @@ import { EvidencePanel } from "@/components/pulse/EvidencePanel";
 import { EvidenceTimeline } from "@/components/pulse/EvidenceTimeline";
 import { Onboarding } from "@/components/pulse/Onboarding";
 import { PulseHeader } from "@/components/pulse/PulseHeader";
+import { LocationModal } from "@/components/pulse/LocationModal";
 import { StatusBadge } from "@/components/pulse/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -391,6 +392,7 @@ function AlertsView({ onOpenEvent }: { onOpenEvent: (event: PulseEvent) => void 
 
 function ProfileView() {
   const { profile, requestGps, update, clear } = useProfile();
+  const [locationOpen, setLocationOpen] = useState(false);
   return (
     <Page title="Your Pulse settings" eyebrow="Profile">
       <section className="glass max-w-2xl rounded-2xl p-4 sm:p-6">
@@ -407,10 +409,21 @@ function ProfileView() {
           </div>
         </div>
         <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
-          <p className="text-sm">Refresh device location</p>
-          <Button variant="outline" onClick={() => void requestGps()}>
-            Use GPS
-          </Button>
+          <div>
+            <p className="text-sm font-medium">Device location</p>
+            <p className="text-xs text-muted-foreground">
+              {profile?.area ? `${profile.area}, ` : ""}
+              {profile?.city} ({profile?.latitude.toFixed(4)}, {profile?.longitude.toFixed(4)})
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => setLocationOpen(true)}>
+              Change Location
+            </Button>
+            <Button variant="secondary" size="sm" onClick={() => void requestGps()}>
+              Refresh GPS
+            </Button>
+          </div>
         </div>
         <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
           <p className="text-sm">Relevant alerts</p>
@@ -424,6 +437,7 @@ function ProfileView() {
       <Button variant="destructive" className="mt-4" onClick={clear}>
         Reset profile
       </Button>
+      <LocationModal open={locationOpen} onOpenChange={setLocationOpen} />
     </Page>
   );
 }

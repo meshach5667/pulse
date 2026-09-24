@@ -11,6 +11,213 @@ const clients = new Set<express.Response>();
 app.use(cors());
 app.use(express.json({ limit: "10mb" }));
 
+interface GeocodeResult {
+  city: string;
+  area: string | null;
+  state: string | null;
+  country: string | null;
+  display_name: string;
+  latitude: number;
+  longitude: number;
+}
+
+const geocodeCache = new Map<string, { data: GeocodeResult; time: number }>();
+
+app.get("/api/geocode/reverse", async (request, response) => {
+  const lat = Number(request.query.lat);
+  const lon = Number(request.query.lon);
+  if (Number.isNaN(lat) || Number.isNaN(lon)) {
+    response.status(400).json({ error: "Invalid coordinates" });
+    return;
+  }
+
+  const cacheKey = `${lat.toFixed(4)},${lon.toFixed(4)}`;
+  const cached = geocodeCache.get(cacheKey);
+  if (cached && Date.now() - cached.time < 3600000) {
+    response.json(cached.data);
+    return;
+  }
+
+  // 1. Try Nominatim
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 3500);
+    const osmRes = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=14&addressdetails=1`,
+      {
+        headers: { "User-Agent": "PulseLocalIntelligence/1.0" },
+        signal: controller.signal,
+      },
+    );
+    clearTimeout(timer);
+    if (osmRes.ok) {
+      const data = (await osmRes.json()) as {
+        display_name?: string;
+        address?: Record<string, string>;
+      };
+      const addr = data.address ?? {};
+      const state = addr.state || addr.province || addr.region || null;
+      let city =
+        addr.city ||
+        addr.town ||
+        addr.municipality ||
+        addr.county ||
+        addr.city_district ||
+        addr.state_district ||
+        null;
+      let area =
+        addr.suburb ||
+        addr.neighbourhood ||
+        addr.district ||
+        addr.village ||
+        addr.quarter ||
+        addr.residential ||
+        null;
+
+      // Special normalization for FCT / Abuja
+      if (
+        state &&
+        (state.toLowerCase().includes("federal capital territory") ||
+          state.toLowerCase().includes("fct"))
+      ) {
+        if (
+          !city ||
+          city.toLowerCase().includes("council") ||
+          city.toLowerCase().includes("municipal")
+        ) {
+          area = area || city || "Central District";
+          city = "Abuja";
+        }
+      }
+
+      if (city) {
+        city = city.replace(/^(City of|Municipality of)\s+/i, "").trim();
+        const result: GeocodeResult = {
+          city,
+          area: area && area.toLowerCase() !== city.toLowerCase() ? area : null,
+          state,
+          country: addr.country ?? null,
+          display_name: data.display_name ?? `${city}, ${state ?? ""}`,
+          latitude: lat,
+          longitude: lon,
+        };
+        geocodeCache.set(cacheKey, { data: result, time: Date.now() });
+        response.json(result);
+        return;
+      }
+    }
+  } catch {
+    // Continue to next fallback
+  }
+
+  // 2. Try BigDataCloud
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 3500);
+    const bdcRes = await fetch(
+      `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`,
+      { signal: controller.signal },
+    );
+    clearTimeout(timer);
+    if (bdcRes.ok) {
+      const data = (await bdcRes.json()) as {
+        city?: string;
+        locality?: string;
+        principalSubdivision?: string;
+        countryName?: string;
+      };
+      let city = data.city || data.locality || data.principalSubdivision || null;
+      const area = data.locality || null;
+      const state = data.principalSubdivision || null;
+
+      if (state && (state.toLowerCase().includes("abuja") || state.toLowerCase().includes("fct"))) {
+        city = "Abuja";
+      }
+
+      if (city) {
+        const result: GeocodeResult = {
+          city,
+          area: area && area.toLowerCase() !== city.toLowerCase() ? area : null,
+          state,
+          country: data.countryName ?? null,
+          display_name: `${city}${state ? `, ${state}` : ""}`,
+          latitude: lat,
+          longitude: lon,
+        };
+        geocodeCache.set(cacheKey, { data: result, time: Date.now() });
+        response.json(result);
+        return;
+      }
+    }
+  } catch {
+    // Continue
+  }
+
+  response.status(404).json({ error: "Could not reverse geocode coordinates" });
+});
+
+app.get("/api/geocode/search", async (request, response) => {
+  const query = typeof request.query.q === "string" ? request.query.q.trim() : "";
+  if (!query || query.length < 2) {
+    response.json([]);
+    return;
+  }
+
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 4000);
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=6&addressdetails=1`,
+      {
+        headers: { "User-Agent": "PulseLocalIntelligence/1.0" },
+        signal: controller.signal,
+      },
+    );
+    clearTimeout(timer);
+    if (res.ok) {
+      const list = (await res.json()) as Array<{
+        lat: string;
+        lon: string;
+        display_name: string;
+        address?: Record<string, string>;
+      }>;
+      const results = list.map((item) => {
+        const addr = item.address ?? {};
+        const state = addr.state || addr.province || addr.region || null;
+        let city =
+          addr.city ||
+          addr.town ||
+          addr.municipality ||
+          addr.county ||
+          addr.state_district ||
+          query;
+        if (
+          state &&
+          (state.toLowerCase().includes("federal capital territory") ||
+            state.toLowerCase().includes("fct"))
+        ) {
+          city = "Abuja";
+        }
+        return {
+          city,
+          area: addr.suburb || addr.neighbourhood || addr.district || null,
+          state,
+          country: addr.country ?? null,
+          display_name: item.display_name,
+          latitude: Number.parseFloat(item.lat),
+          longitude: Number.parseFloat(item.lon),
+        };
+      });
+      response.json(results);
+      return;
+    }
+  } catch {
+    // Fall back to empty array
+  }
+
+  response.json([]);
+});
+
 app.get("/api/health", (_request, response) =>
   response.json({ ok: true, database: "mongodb", ai: Boolean(process.env.GEMINI_API_KEY) }),
 );

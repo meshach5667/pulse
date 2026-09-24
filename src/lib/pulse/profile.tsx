@@ -19,11 +19,18 @@ interface ProfileContextValue {
   profile: PulseProfile | null;
   hydrated: boolean;
   update: (patch: Partial<PulseProfile>) => void;
-  setCity: (cityName: string) => void;
+  setCity: (
+    cityName: string,
+    coords?: { latitude: number; longitude: number; area?: string | null },
+  ) => void;
   clear: () => void;
   requestGps: () => Promise<Result>;
   createFromGps: (name: string) => Promise<Result>;
-  createManual: (name: string, city: string) => void;
+  createManual: (
+    name: string,
+    city: string,
+    coords?: { latitude: number; longitude: number; area?: string | null },
+  ) => void;
 }
 
 const ProfileContext = createContext<ProfileContextValue | null>(null);
@@ -34,13 +41,30 @@ function getPosition(): Promise<GeolocationPosition> {
       reject(new Error("This device cannot share a location."));
       return;
     }
+
+    // Try high accuracy first with 0 maximumAge to avoid stale coordinates
     navigator.geolocation.getCurrentPosition(
       resolve,
-      () => reject(new Error("Location permission was not granted.")),
+      (err) => {
+        // Fall back to standard accuracy if high accuracy timed out or is unavailable
+        if (err.code === err.TIMEOUT || err.code === err.POSITION_UNAVAILABLE) {
+          navigator.geolocation.getCurrentPosition(
+            resolve,
+            () => reject(new Error("Unable to determine your device's location.")),
+            {
+              enableHighAccuracy: false,
+              timeout: 8000,
+              maximumAge: 0,
+            },
+          );
+        } else {
+          reject(new Error("Location permission was not granted."));
+        }
+      },
       {
         enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 60000,
+        timeout: 6000,
+        maximumAge: 0,
       },
     );
   });
@@ -84,13 +108,13 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const setCity = useCallback(
-    (cityName: string) => {
+    (cityName: string, coords?: { latitude: number; longitude: number; area?: string | null }) => {
       const c = cityByName(cityName);
       update({
         city: c.name,
-        area: null,
-        latitude: c.latitude,
-        longitude: c.longitude,
+        area: coords?.area ?? null,
+        latitude: coords?.latitude ?? c.latitude,
+        longitude: coords?.longitude ?? c.longitude,
         simulatedTravel: true,
       });
     },
@@ -109,7 +133,10 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
         gpsGranted: true,
         simulatedTravel: false,
       });
-      return { ok: true, message: `Location set to ${place.city}.` };
+      return {
+        ok: true,
+        message: `Location set to ${place.area ? `${place.area}, ` : ""}${place.city}.`,
+      };
     } catch (e) {
       return { ok: false, message: (e as Error).message };
     }
@@ -131,7 +158,10 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
           notifications: true,
           simulatedTravel: false,
         });
-        return { ok: true, message: `Location set to ${place.city}.` };
+        return {
+          ok: true,
+          message: `Location set to ${place.area ? `${place.area}, ` : ""}${place.city}.`,
+        };
       } catch (e) {
         return { ok: false, message: (e as Error).message };
       }
@@ -140,15 +170,19 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   );
 
   const createManual = useCallback(
-    (name: string, cityName: string) => {
+    (
+      name: string,
+      cityName: string,
+      coords?: { latitude: number; longitude: number; area?: string | null },
+    ) => {
       const c = cityByName(cityName);
       persist({
         id: crypto.randomUUID(),
         name: name.trim() || "Anonymous",
         city: c.name,
-        area: null,
-        latitude: c.latitude,
-        longitude: c.longitude,
+        area: coords?.area ?? null,
+        latitude: coords?.latitude ?? c.latitude,
+        longitude: coords?.longitude ?? c.longitude,
         gpsGranted: false,
         notifications: true,
         simulatedTravel: false,
